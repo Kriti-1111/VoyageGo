@@ -1,68 +1,81 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const SECRET_KEY = process.env.JWT_SECRET || 'voyagego_secret';
-
-// ─── AUTH MIDDLEWARE ──────────────────────────────────────────────────────────
-// Converted from Prisma (reference project) → Mongoose (your project)
-// Logic is identical — just swapped prisma.user.findUnique → User.findById
-
+// ── Base auth middleware ───────────────────────────────────────────────────────
+// Verifies the JWT and attaches req.user
 export const auth = async (req, res, next) => {
   try {
-    // 1. Extract token from Authorization header
-    let token;
-    if (req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided' });
     }
 
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Not authorized, no token' });
-    }
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'Alish');
 
-    // 2. Verify token
-    const decoded = jwt.verify(token, SECRET_KEY);
-
-    // 3. Find user in MongoDB (your project uses MongoDB, not Prisma)
     const user = await User.findById(decoded.id).select('-password');
-
     if (!user) {
-      return res.status(401).json({ success: false, message: 'User not found' });
+      return res.status(401).json({ message: 'User not found' });
     }
 
-    // 4. Attach user to request — available as req.user in all controllers
     req.user = user;
     next();
-
-  } catch (error) {
-    console.error('Auth middleware error:', error.message);
-    return res.status(401).json({ success: false, message: 'Token invalid or expired' });
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
 
-// ─── ADMIN GUARD ──────────────────────────────────────────────────────────────
-// Use AFTER auth middleware: router.get('/something', auth, admin, handler)
+// ── Role-specific middleware ───────────────────────────────────────────────────
+
 export const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'ADMIN') {
-    next();
-  } else {
-    return res.status(403).json({ success: false, message: 'Admin access required' });
-  }
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Admin access required' });
+  next();
 };
 
-// ─── DRIVER GUARD ─────────────────────────────────────────────────────────────
+export const owner = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (req.user.role !== 'OWNER') return res.status(403).json({ message: 'Owner access required' });
+  next();
+};
+
+export const staff = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (req.user.role !== 'STAFF') return res.status(403).json({ message: 'Staff access required' });
+  next();
+};
+
 export const driver = (req, res, next) => {
-  if (req.user && req.user.role === 'DRIVER') {
-    next();
-  } else {
-    return res.status(403).json({ success: false, message: 'Driver access required' });
-  }
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (req.user.role !== 'DRIVER') return res.status(403).json({ message: 'Driver access required' });
+  next();
 };
 
-// ─── CUSTOMER GUARD ───────────────────────────────────────────────────────────
 export const customer = (req, res, next) => {
-  if (req.user && req.user.role === 'CUSTOMER') {
-    next();
-  } else {
-    return res.status(403).json({ success: false, message: 'Customer access required' });
-  }
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (req.user.role !== 'CUSTOMER') return res.status(403).json({ message: 'Customer access required' });
+  next();
 };
+
+// ── Management middleware ──────────────────────────────────────────────────────
+// Allows OWNER + ADMIN + STAFF (any management role)
+export const management = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  const managementRoles = ['OWNER', 'ADMIN', 'STAFF'];
+  if (!managementRoles.includes(req.user.role)) {
+    return res.status(403).json({ message: 'Management access required' });
+  }
+  next();
+};
+
+// ── Elevated management middleware ────────────────────────────────────────────
+// Allows only OWNER + ADMIN (not STAFF)
+export const adminOrOwner = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (!['OWNER', 'ADMIN'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Admin or Owner access required' });
+  }
+  next();
+};
+
+export default auth;

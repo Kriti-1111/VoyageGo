@@ -1,227 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { format, parseISO } from 'date-fns';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { format, parseISO } from "date-fns";
 
-// ─── STATUS CONFIG ────────────────────────────────────────────────────────────
-const statusStyle = {
-  Pending:   { bg: 'bg-amber-100',   text: 'text-amber-800',   icon: '⏳' },
-  Accepted:  { bg: 'bg-blue-100',    text: 'text-blue-800',    icon: '✓' },
-  Active:    { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: '🚗' },
-  Completed: { bg: 'bg-gray-100',    text: 'text-gray-700',    icon: '✓' },
-  Cancelled: { bg: 'bg-red-100',     text: 'text-red-800',     icon: '✕' },
+const API = "http://localhost:5000";
+
+const fmt = (d) => {
+  try { return format(parseISO(d), "MMM d, yyyy · h:mm a"); }
+  catch { return d || "—"; }
 };
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function CustomerDashboard() {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('browse'); // browse | myTrips
-  const [vehicles, setVehicles] = useState([]);
-  const [myBookings, setMyBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+const STATUS = {
+  Pending:   { bg: "#fffbeb", color: "#b45309", dot: "#f59e0b" },
+  PENDING:   { bg: "#fffbeb", color: "#b45309", dot: "#f59e0b" },
+  Accepted:  { bg: "#eff6ff", color: "#1d4ed8", dot: "#3b82f6" },
+  CONFIRMED: { bg: "#f0fdf4", color: "#15803d", dot: "#22c55e" },
+  Active:    { bg: "#f0fdf4", color: "#15803d", dot: "#22c55e" },
+  Completed: { bg: "#f8fafc", color: "#475569", dot: "#94a3b8" },
+  COMPLETED: { bg: "#f8fafc", color: "#475569", dot: "#94a3b8" },
+  Cancelled: { bg: "#fff1f2", color: "#be123c", dot: "#f43f5e" },
+  CANCELLED: { bg: "#fff1f2", color: "#be123c", dot: "#f43f5e" },
+};
 
-  useEffect(() => {
-    fetchVehicles();
-    fetchMyBookings();
-  }, []);
-
-  // ── FETCH VEHICLES ─────────────────────────────────────────────────────────
-  const fetchVehicles = async () => {
-    try {
-      const { data } = await axios.get('http://localhost:5000/api/vehicles');
-      setVehicles(data.filter(v => v.isActive)); // Only show active vehicles
-    } catch (err) {
-      console.error('Error fetching vehicles:', err);
-    }
-  };
-
-  // ── FETCH MY BOOKINGS ──────────────────────────────────────────────────────
-  const fetchMyBookings = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get('http://localhost:5000/api/bookings/my', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setMyBookings(data);
-    } catch (err) {
-      console.error('Error fetching bookings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── FILTER VEHICLES ────────────────────────────────────────────────────────
-  const filteredVehicles = vehicles.filter(v =>
-    v.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.company?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // ── TAB COUNTS ─────────────────────────────────────────────────────────────
-  const activeBookings = myBookings.filter(b => 
-    ['Pending', 'Accepted', 'Active'].includes(b.status)
-  ).length;
-
-  // ─────────────────────────────────────────────────────────────────────────
+function Badge({ status }) {
+  const s = STATUS[status] || STATUS.Pending;
+  const label = status.charAt(0) + status.slice(1).toLowerCase();
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">VoyageGo</h1>
-              <p className="text-sm text-gray-500">Explore. Book. Drive.</p>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:"5px", background:s.bg, color:s.color, padding:"4px 10px", borderRadius:"20px", fontSize:"12px", fontWeight:"600" }}>
+      <span style={{ width:"6px", height:"6px", borderRadius:"50%", background:s.dot }} />
+      {label}
+    </span>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"64px", flexDirection:"column", gap:"12px" }}>
+      <div style={{ width:"32px", height:"32px", border:"3px solid #e2e8f0", borderTopColor:"#6366f1", borderRadius:"50%", animation:"spin 0.8s linear infinite" }} />
+      <p style={{ color:"#94a3b8", fontSize:"13px", margin:0 }}>Loading…</p>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+export default function Customer() {
+  const navigate = useNavigate();
+  const [tab, setTab]               = useState("browse");
+  const [vehicles, setVehicles]     = useState([]);
+  const [bookings, setBookings]     = useState([]);
+  const [loadV, setLoadV]           = useState(true);
+  const [loadB, setLoadB]           = useState(true);
+  const [search, setSearch]         = useState("");
+  const token = localStorage.getItem("token");
+
+  useEffect(() => { loadVehicles(); loadBookings(); }, []);
+
+  const loadVehicles = async () => {
+    try { setLoadV(true); const { data } = await axios.get(`${API}/api/vehicles`); setVehicles(Array.isArray(data) ? data.filter(v => v.isActive) : []); }
+    catch(e) { console.error(e); } finally { setLoadV(false); }
+  };
+
+  const loadBookings = async () => {
+    try { setLoadB(true); const { data } = await axios.get(`${API}/api/bookings/my`, { headers:{ Authorization:`Bearer ${token}` } }); setBookings(Array.isArray(data) ? data : []); }
+    catch(e) { console.error(e); } finally { setLoadB(false); }
+  };
+
+  const filtered = vehicles.filter(v =>
+    [v.name, v.type, v.company, v.model].some(f => f?.toLowerCase().includes(search.toLowerCase()))
+  );
+  const activeBookings = bookings.filter(b => ["Pending","PENDING","Accepted","CONFIRMED","Active"].includes(b.status));
+
+  return (
+    <div style={{ fontFamily:"'DM Sans','Segoe UI',system-ui,sans-serif", background:"#f8fafc", minHeight:"100%" }}>
+
+      {/* Hero */}
+      <div style={{ background:"linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#3730a3 100%)", padding:"52px 32px 72px", position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", top:"-80px", right:"-80px", width:"320px", height:"320px", borderRadius:"50%", background:"rgba(99,102,241,0.12)" }} />
+        <div style={{ position:"absolute", bottom:"-60px", left:"30%", width:"180px", height:"180px", borderRadius:"50%", background:"rgba(139,92,246,0.1)" }} />
+        <div style={{ maxWidth:"1100px", margin:"0 auto", position:"relative" }}>
+          <p style={{ color:"#a5b4fc", fontSize:"12px", fontWeight:"700", textTransform:"uppercase", letterSpacing:"1.5px", margin:"0 0 8px" }}>Customer Portal</p>
+          <h1 style={{ color:"#fff", fontSize:"34px", fontWeight:"800", margin:"0 0 6px", letterSpacing:"-0.5px" }}>Find Your Perfect Ride</h1>
+          <p style={{ color:"#94a3b8", fontSize:"15px", margin:"0 0 32px" }}>Browse vehicles and manage your trips in one place</p>
+          {/* Stats pills */}
+          <div style={{ display:"flex", gap:"12px", flexWrap:"wrap", marginBottom:"28px" }}>
+            {[
+              { label:"Available Vehicles", value:vehicles.length, color:"#a5b4fc" },
+              { label:"Active Bookings",    value:activeBookings.length, color:"#86efac" },
+              { label:"Total Trips",        value:bookings.length, color:"#fde68a" },
+            ].map(s => (
+              <div key={s.label} style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.12)", backdropFilter:"blur(8px)", borderRadius:"12px", padding:"12px 20px", display:"flex", alignItems:"center", gap:"10px" }}>
+                <span style={{ fontSize:"20px", fontWeight:"800", color:s.color }}>{s.value}</span>
+                <span style={{ fontSize:"13px", color:"#94a3b8" }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+          {/* Search */}
+          <div style={{ display:"flex", gap:"10px", maxWidth:"500px" }}>
+            <div style={{ flex:1, display:"flex", alignItems:"center", gap:"10px", background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:"12px", padding:"12px 16px" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input value={search} onChange={e => { setSearch(e.target.value); setTab("browse"); }} placeholder="Search by name, type, model…"
+                style={{ background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:"14px", width:"100%" }} />
             </div>
-            <button
-              onClick={() => {
-                localStorage.clear();
-                navigate('/login');
-              }}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 
-                border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Logout
+            <button onClick={() => setTab("browse")}
+              style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none", borderRadius:"12px", padding:"12px 20px", fontSize:"14px", fontWeight:"600", cursor:"pointer" }}>
+              Search
             </button>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1 pt-2">
-            {[
-              { key: 'browse', label: 'Browse Vehicles', count: filteredVehicles.length },
-              { key: 'myTrips', label: 'My Trips', count: activeBookings },
-            ].map(({ key, label, count }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`px-6 py-3 text-sm font-semibold border-b-2 transition-all
-                  ${activeTab === key
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                {label}
-                {count > 0 && (
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                    ${activeTab === key ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {count}
-                  </span>
-                )}
+      <div style={{ background:"#fff", borderBottom:"1px solid #f1f5f9", position:"sticky", top:0, zIndex:20 }}>
+        <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"0 32px", display:"flex" }}>
+          {[
+            { key:"browse",   label:"Browse Vehicles", count:filtered.length },
+            { key:"bookings", label:"My Bookings",     count:bookings.length },
+          ].map(t => {
+            const active = tab === t.key;
+            return (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                style={{ padding:"16px 20px", border:"none", background:"transparent", cursor:"pointer", fontSize:"14px", fontWeight:active?"700":"500", color:active?"#6366f1":"#64748b", borderBottom:active?"2px solid #6366f1":"2px solid transparent", display:"flex", alignItems:"center", gap:"8px", transition:"all 0.15s" }}>
+                {t.label}
+                {t.count > 0 && <span style={{ background:active?"#eef2ff":"#f1f5f9", color:active?"#6366f1":"#64748b", borderRadius:"20px", padding:"2px 8px", fontSize:"12px", fontWeight:"700" }}>{t.count}</span>}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {activeTab === 'browse' ? (
-          <BrowseVehicles
-            vehicles={filteredVehicles}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            navigate={navigate}
-          />
-        ) : (
-          <MyTrips bookings={myBookings} loading={loading} navigate={navigate} />
-        )}
+      <div style={{ maxWidth:"1100px", margin:"0 auto", padding:"32px" }}>
+        {tab === "browse"
+          ? <BrowseTab vehicles={filtered} loading={loadV} navigate={navigate} />
+          : <BookingsTab bookings={bookings} loading={loadB} setTab={setTab} />
+        }
       </div>
     </div>
   );
 }
 
-// ─── BROWSE VEHICLES TAB ──────────────────────────────────────────────────────
-function BrowseVehicles({ vehicles, searchTerm, setSearchTerm, navigate }) {
+// ─── Browse Tab ───────────────────────────────────────────────────────────────
+function BrowseTab({ vehicles, loading, navigate }) {
+  if (loading) return <Spinner />;
+  if (!vehicles.length) return (
+    <div style={{ textAlign:"center", padding:"80px 24px", background:"#fff", borderRadius:"16px", border:"1px solid #f1f5f9" }}>
+      <div style={{ fontSize:"48px", marginBottom:"12px" }}>🚗</div>
+      <p style={{ color:"#475569", fontWeight:"600", margin:0 }}>No vehicles available</p>
+      <p style={{ color:"#94a3b8", fontSize:"13px", marginTop:"6px" }}>Check back later for new listings</p>
+    </div>
+  );
   return (
     <div>
-      {/* Search bar */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <input
-            type="text"
-            placeholder="Search by name, type, or company..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg
-              focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <svg className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
+      <p style={{ color:"#64748b", fontSize:"14px", marginBottom:"20px" }}>{vehicles.length} vehicle{vehicles.length !== 1 ? "s" : ""} available</p>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:"20px" }}>
+        {vehicles.map(v => <VehicleCard key={v._id || v.id} v={v} navigate={navigate} />)}
       </div>
-
-      {/* Vehicle grid */}
-      {vehicles.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border">
-          <div className="text-6xl mb-4">🚗</div>
-          <p className="text-gray-500 text-lg font-medium">No vehicles available</p>
-          <p className="text-gray-400 text-sm mt-1">Check back later for new listings</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vehicles.map((v) => (
-            <VehicleCard key={v._id} vehicle={v} navigate={navigate} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-// ─── VEHICLE CARD ─────────────────────────────────────────────────────────────
-function VehicleCard({ vehicle: v, navigate }) {
+function VehicleCard({ v, navigate }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 
-      overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
-      
-      {/* Image */}
-      <div className="h-48 bg-gray-100 relative overflow-hidden">
-        {v.imageUrl ? (
-          <img
-            src={`http://localhost:5000/${v.imageUrl}`}
-            alt={v.name}
-            className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-6xl">
-            🚗
-          </div>
-        )}
-        <div className="absolute top-3 right-3 bg-blue-600 text-white px-3 py-1 
-          rounded-full text-sm font-bold shadow-lg">
+    <div style={{ background:"#fff", borderRadius:"16px", border:"1px solid #f1f5f9", overflow:"hidden", transition:"transform 0.2s,box-shadow 0.2s", cursor:"pointer" }}
+      onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.boxShadow="0 12px 32px rgba(0,0,0,0.1)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow=""; }}>
+      <div style={{ height:"180px", background:"linear-gradient(135deg,#e0e7ff,#f5f3ff)", position:"relative", overflow:"hidden" }}>
+        {v.imageUrl
+          ? <img src={`${API}/${v.imageUrl}`} alt={v.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => e.target.style.display="none"} />
+          : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"56px" }}>🚗</div>
+        }
+        <div style={{ position:"absolute", top:"12px", right:"12px", background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", padding:"6px 12px", borderRadius:"20px", fontSize:"13px", fontWeight:"700", boxShadow:"0 4px 12px rgba(99,102,241,0.4)" }}>
           Rs {v.pricePerHour}/hr
         </div>
       </div>
-
-      {/* Info */}
-      <div className="p-5">
-        <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">{v.name}</h3>
-        <p className="text-sm text-gray-500 mb-3">{v.type} • {v.model}</p>
-
-        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-4">
-          <div className="flex items-center gap-1">
-            <span>⛽</span>
-            <span>{v.fuelType}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span>👥</span>
-            <span>{v.passengerSeat} seats</span>
-          </div>
+      <div style={{ padding:"18px" }}>
+        <h3 style={{ fontSize:"15px", fontWeight:"700", color:"#0f172a", margin:"0 0 3px" }}>{v.name}</h3>
+        <p style={{ fontSize:"13px", color:"#64748b", margin:"0 0 14px" }}>{v.type}{v.model ? ` · ${v.model}` : ""}</p>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"7px", marginBottom:"14px" }}>
+          {[
+            { icon:"👥", label:`${v.passengerSeat || 4} seats` },
+            { icon:"⛽", label:v.fuelType || "Petrol" },
+          ].map(({ icon, label }) => (
+            <div key={label} style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f8fafc", padding:"7px 10px", borderRadius:"8px", fontSize:"12px", color:"#64748b", fontWeight:"500" }}>
+              <span>{icon}</span>{label}
+            </div>
+          ))}
         </div>
-
-        <button
-          onClick={() => navigate(`/vehicle/${v._id}`)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold 
-            py-2.5 rounded-lg transition-colors"
-        >
+        <button onClick={() => navigate(`/vehicles/${v._id || v.id}`)}
+          style={{ width:"100%", background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none", borderRadius:"10px", padding:"10px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>
           View Details & Book
         </button>
       </div>
@@ -229,129 +196,67 @@ function VehicleCard({ vehicle: v, navigate }) {
   );
 }
 
-// ─── MY TRIPS TAB ─────────────────────────────────────────────────────────────
-function MyTrips({ bookings, loading, navigate }) {
-  const formatDate = (dateString) => {
-    try { return format(parseISO(dateString), 'MMM d, yyyy h:mm a'); }
-    catch { return dateString; }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
-
-  if (bookings.length === 0) {
-    return (
-      <div className="text-center py-20 bg-white rounded-xl border">
-        <div className="text-6xl mb-4">📋</div>
-        <p className="text-gray-500 text-lg font-medium">No bookings yet</p>
-        <p className="text-gray-400 text-sm mt-1 mb-6">Start exploring and book your first vehicle!</p>
-        <button
-          onClick={() => navigate('/customer')}
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 
-            text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-        >
-          Browse Vehicles
-        </button>
-      </div>
-    );
-  }
-
+// ─── Bookings Tab ─────────────────────────────────────────────────────────────
+function BookingsTab({ bookings, loading, setTab }) {
+  if (loading) return <Spinner />;
+  if (!bookings.length) return (
+    <div style={{ textAlign:"center", padding:"80px 24px", background:"#fff", borderRadius:"16px", border:"1px solid #f1f5f9" }}>
+      <div style={{ fontSize:"48px", marginBottom:"12px" }}>📋</div>
+      <p style={{ color:"#475569", fontWeight:"600", margin:0 }}>No bookings yet</p>
+      <p style={{ color:"#94a3b8", fontSize:"13px", marginTop:"6px" }}>Start exploring vehicles and make your first booking!</p>
+      <button onClick={() => setTab("browse")}
+        style={{ marginTop:"20px", background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none", borderRadius:"10px", padding:"10px 24px", fontSize:"14px", fontWeight:"600", cursor:"pointer" }}>
+        Browse Vehicles
+      </button>
+    </div>
+  );
   return (
-    <div className="space-y-4">
-      {bookings.map((b) => (
-        <BookingCard key={b._id} booking={b} formatDate={formatDate} />
-      ))}
+    <div>
+      <p style={{ color:"#64748b", fontSize:"14px", marginBottom:"20px" }}>{bookings.length} booking{bookings.length !== 1 ? "s" : ""}</p>
+      <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+        {bookings.map(b => <BookingCard key={b._id || b.id} b={b} />)}
+      </div>
     </div>
   );
 }
 
-// ─── BOOKING CARD ─────────────────────────────────────────────────────────────
-function BookingCard({ booking: b, formatDate }) {
-  const s = statusStyle[b.status] || statusStyle.Pending;
-
+function BookingCard({ b }) {
+  const status = b.status || "Pending";
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 
-      hover:shadow-md transition-shadow">
-      
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-start gap-4">
-          {/* Vehicle image thumbnail */}
-          <div className="w-20 h-20 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-            {b.vehicle?.imageUrl ? (
-              <img
-                src={`http://localhost:5000/${b.vehicle.imageUrl}`}
-                alt={b.vehicle.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">
-                🚗
-              </div>
-            )}
+    <div style={{ background:"#fff", borderRadius:"14px", border:"1px solid #f1f5f9", padding:"20px", transition:"box-shadow 0.2s" }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.07)"}
+      onMouseLeave={e => e.currentTarget.style.boxShadow=""}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"12px", flexWrap:"wrap", marginBottom:"16px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+          <div style={{ width:"60px", height:"60px", borderRadius:"10px", background:"linear-gradient(135deg,#e0e7ff,#f5f3ff)", overflow:"hidden", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"24px" }}>
+            {b.vehicle?.imageUrl ? <img src={`${API}/${b.vehicle.imageUrl}`} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🚗"}
           </div>
-
-          {/* Vehicle info */}
           <div>
-            <h3 className="text-lg font-bold text-gray-900">{b.vehicle?.name || 'Vehicle'}</h3>
-            <p className="text-sm text-gray-500">{b.vehicle?.type} • {b.vehicle?.plateNumber}</p>
+            <h3 style={{ fontSize:"15px", fontWeight:"700", color:"#0f172a", margin:"0 0 2px" }}>{b.vehicle?.name || "Vehicle"}</h3>
+            <p style={{ fontSize:"12px", color:"#64748b", margin:0 }}>{b.vehicle?.type}{b.vehicle?.plateNumber ? ` · ${b.vehicle.plateNumber}` : ""}</p>
           </div>
         </div>
-
-        {/* Status badge */}
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full 
-          text-sm font-semibold ${s.bg} ${s.text}`}>
-          <span>{s.icon}</span>
-          {b.status}
-        </span>
-      </div>
-
-      {/* Trip details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs mb-1">Pickup</p>
-          <p className="text-gray-900 font-medium">{formatDate(b.startDate)}</p>
-        </div>
-        <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-gray-500 text-xs mb-1">Return</p>
-          <p className="text-gray-900 font-medium">{formatDate(b.endDate)}</p>
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"6px" }}>
+          <Badge status={status} />
+          <p style={{ fontSize:"18px", fontWeight:"800", color:"#0f172a", margin:0 }}>Rs {(b.totalPrice||0).toLocaleString()}</p>
         </div>
       </div>
-
-      {/* Price & Driver */}
-      <div className="flex items-center justify-between mt-4 pt-4 border-t">
-        <div>
-          <p className="text-gray-500 text-xs">Total Price</p>
-          <p className="text-xl font-bold text-gray-900">Rs {b.totalPrice?.toLocaleString()}</p>
-        </div>
-        {b.driver ? (
-          <div className="text-right">
-            <p className="text-gray-500 text-xs">Driver</p>
-            <p className="text-sm font-medium text-gray-900">{b.driver.name}</p>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+        {[{ label:"Pickup", value:fmt(b.startDate) }, { label:"Return", value:fmt(b.endDate) }].map(({ label, value }) => (
+          <div key={label} style={{ background:"#f8fafc", borderRadius:"8px", padding:"10px 12px" }}>
+            <p style={{ fontSize:"11px", color:"#94a3b8", fontWeight:"700", textTransform:"uppercase", letterSpacing:"0.5px", margin:"0 0 2px" }}>{label}</p>
+            <p style={{ fontSize:"13px", color:"#334155", fontWeight:"500", margin:0 }}>{value}</p>
           </div>
-        ) : b.status === 'Pending' ? (
-          <p className="text-amber-600 text-sm font-medium">⏳ Awaiting driver confirmation</p>
-        ) : null}
+        ))}
       </div>
-
-      {/* Status messages */}
-      {b.status === 'Pending' && (
-        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-          Your booking request has been sent to the driver. You'll be notified once they respond.
+      {(status === "Pending" || status === "PENDING") && (
+        <div style={{ marginTop:"12px", background:"#fffbeb", border:"1px solid #fde68a", borderRadius:"8px", padding:"10px 14px", fontSize:"13px", color:"#92400e" }}>
+          ⏳ Awaiting driver confirmation
         </div>
       )}
-      {b.status === 'Accepted' && (
-        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-          Your booking is confirmed! The driver will contact you before the pickup time.
-        </div>
-      )}
-      {b.status === 'Active' && (
-        <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
-          🚗 Trip in progress. Have a safe journey!
+      {(status === "Accepted" || status === "CONFIRMED") && (
+        <div style={{ marginTop:"12px", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:"8px", padding:"10px 14px", fontSize:"13px", color:"#1e40af" }}>
+          ✅ Confirmed — driver will contact you before pickup
         </div>
       )}
     </div>

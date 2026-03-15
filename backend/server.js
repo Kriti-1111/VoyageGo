@@ -2,13 +2,16 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
 import authRoutes from './routes/authRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
-import vehicleRoutes from './routes/vehicleRoutes.js';  // ← ADD THIS
+import vehicleRoutes from './routes/vehicleRoutes.js';
+import driverRoutes from './routes/driverRoutes.js';
 
 dotenv.config();
 
 const app = express();
+
 
 // Middleware
 app.use(cors());
@@ -37,7 +40,8 @@ connectDB();
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/vehicles', vehicleRoutes);  // ← ADD THIS
+app.use('/api/vehicles', vehicleRoutes);  
+app.use('/api/drivers', driverRoutes);
 
 // Test route
 app.get('/', (req, res) => {

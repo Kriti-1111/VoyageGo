@@ -46,7 +46,7 @@ async function createAdmin() {
     // Admin details - CHANGE THESE VALUES
     const adminData = {
       name: 'Admin User',
-      email: 'admin@voyagego.com',        // ← CHANGE THIS
+      email: 'admin@gmail.com',        // ← CHANGE THIS
       password: 'admin123',                 // ← CHANGE THIS (will be hashed)
       phone: '1234567890',
       role: 'ADMIN'

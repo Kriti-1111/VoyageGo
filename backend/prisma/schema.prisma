@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,3 +9,67 @@ datasource db {
   provider = "mongodb"
 }
 
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  email        String    @unique
+  password     String
+  name         String
+  role         Role      @default(CUSTOMER)
+  isAvailable  Boolean   @default(false)      // for drivers
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  bookings     Booking[] @relation("CustomerBookings")      // as customer
+  assignedBookings Booking[] @relation("DriverBookings")    // as driver
+  vehicles     Vehicle[]  // if drivers can own vehicles (optional)
+}
+
+model Vehicle {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  type         String    // e.g., Sedan, SUV, Hatchback
+  plateNumber  String    @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  ownerId      String?   @db.ObjectId   // if vehicles belong to a user (driver/admin)
+  owner        User?     @relation(fields: [ownerId], references: [id])
+  bookings     Booking[]
+}
+
+model Booking {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  status          BookingStatus @default(PENDING)
+  startDate       DateTime
+  endDate         DateTime
+  pickupLocation  String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  customerId      String        @db.ObjectId
+  customer        User          @relation("CustomerBookings", fields: [customerId], references: [id])
+
+  driverId        String?       @db.ObjectId
+  driver          User?         @relation("DriverBookings", fields: [driverId], references: [id])
+
+  vehicleId       String?       @db.ObjectId
+  vehicle         Vehicle?      @relation(fields: [vehicleId], references: [id])
+}
