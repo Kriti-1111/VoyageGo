@@ -38,7 +38,7 @@ export default function Home() {
               Explore →
             </button>
 
-            {/* Show register only to guests */}
+            {/* To Show register only to guests */}
             {!user && (
               <button onClick={() => navigate("/register")}
                 style={{ padding:"14px 32px", borderRadius:"12px", border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"#e2e8f0", fontSize:"16px", fontWeight:"600", cursor:"pointer", backdropFilter:"blur(8px)", transition:"all 0.15s" }}

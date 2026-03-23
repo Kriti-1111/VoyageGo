@@ -1,16 +1,22 @@
-import express from 'express';
-import { auth, driver } from '../middleware/auth.js';
-import { getDriverProfile, updateAvailability } from '../controllers/driverController.js';
+import express from "express";
+import { auth, admin, driver } from "../middleware/auth.js";
+import {
+  getDriverProfile,
+  updateAvailability,
+  getAllDrivers,
+  verifyDriver,
+} from "../controllers/driverController.js";
 
 const router = express.Router();
 
-// All routes below require authentication and DRIVER role
-router.use(auth, driver);
+// GET /api/drivers — fetch all drivers (any authenticated user can browse)
+router.get("/", auth, getAllDrivers);
 
-// GET /api/drivers/me – fetch current driver's profile and availability
-router.get('/me', getDriverProfile);
+// PATCH /api/drivers/:id/verify — Admin verifies or unverifies a driver
+router.patch("/:id/verify", auth, admin, verifyDriver);
 
-// PATCH /api/drivers/availability – toggle driver online/offline status
-router.patch('/availability', updateAvailability);
+// Routes below require DRIVER role
+router.get("/me", auth, driver, getDriverProfile);
+router.patch("/availability", auth, driver, updateAvailability);
 
 export default router;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 
-// ─── PRICING LOGIC (matches your tiered pricing spec) ────────────────────────
+// PRICING LOGIC 
 const calculatePrice = (pricePerHour, totalHours) => {
   if (totalHours >= 168) {
     // Weekly: 7 days = 168 hours → 20% discount
@@ -23,7 +23,7 @@ const getDiscountLabel = (totalHours) => {
   return null;
 };
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+// ─── MAIN COMPONENT 
 const CarDetails = () => {
   const { carId } = useParams();
   const navigate  = useNavigate();
@@ -41,13 +41,13 @@ const CarDetails = () => {
   const [notification,  setNotification]  = useState({ open: false, message: "", severity: "success" });
   const [isSubmitting,  setIsSubmitting]  = useState(false);
 
-  // ── AUTH CHECK ──────────────────────────────────────────────────────────────
+  // ── AUTH CHECK 
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, []);
 
-  // ── FETCH VEHICLE ───────────────────────────────────────────────────────────
+  // ── FETCH VEHICLE 
   useEffect(() => {
     const fetchVehicle = async () => {
       try {
@@ -114,7 +114,7 @@ const CarDetails = () => {
     setEndDateTime(val);
   };
 
-  // ── BOOKING SUBMIT ──────────────────────────────────────────────────────────
+  // ── BOOKING SUBMIT 
   // NOTE: No payment redirect — booking goes straight to Pending status.
   // The driver will then Accept or Reject from their dashboard.
   const handleBooking = async () => {
