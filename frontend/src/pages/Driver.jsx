@@ -732,6 +732,11 @@ export default function Driver() {
 
 function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
   const isPending = b.status === "PendingDriver";
+  // Driver's earnings = driverCost + driverFine (not total booking price)
+  const driverEarning = (b.driverCost || 0) + (b.driverFine || 0);
+  const driverEarningLabel =
+    driverEarning > 0 ? `Rs ${driverEarning.toLocaleString()}` : "Pending";
+
   return (
     <div
       style={{
@@ -784,7 +789,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
               flexShrink: 0,
             }}
           >
-            {(b.customer?.name || "?")[0].toUpperCase()}
+            {(b.vehicle?.name || "V")[0].toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
             <p
@@ -795,7 +800,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
                 fontSize: "14px",
               }}
             >
-              {b.customer?.name || "Customer"}
+              {b.vehicle?.name || "Vehicle"}
             </p>
             <p
               style={{
@@ -807,8 +812,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
                 whiteSpace: "nowrap",
               }}
             >
-              {b.vehicle?.name || "Vehicle"} · Rs{" "}
-              {(b.totalPrice || 0).toLocaleString()}
+              {b.vehicle?.type || ""} · {b.vehicle?.plateNumber || ""}
             </p>
           </div>
         </div>
@@ -871,7 +875,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
               borderRadius: 20,
             }}
           >
-            Earnings: Rs {(b.totalPrice || 0).toLocaleString()}
+            Earning: {driverEarningLabel}
           </span>
         )}
       </div>
@@ -880,6 +884,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
         <div
           style={{ padding: "16px 20px 20px", borderTop: "1px solid #f1f5f9" }}
         >
+          {/* Customer contact — only after acceptance */}
           {b.status === "Confirmed" || b.status === "Active" ? (
             <div
               style={{
@@ -938,6 +943,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
             </div>
           ) : null}
 
+          {/* Trip details — no total booking price shown */}
           <div
             style={{
               display: "grid",
@@ -951,8 +957,17 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
               { label: "Plate", value: b.vehicle?.plateNumber || "—" },
               { label: "Type", value: b.vehicle?.type || "—" },
               {
-                label: "Earnings",
-                value: `Rs ${(b.totalPrice || 0).toLocaleString()}`,
+                label: "Duration",
+                value: (() => {
+                  if (!b.startDate || !b.endDate) return "—";
+                  const hrs = Math.ceil(
+                    (new Date(b.endDate) - new Date(b.startDate)) /
+                      (1000 * 60 * 60),
+                  );
+                  return hrs <= 23
+                    ? `${hrs}h`
+                    : `${Math.ceil(hrs / 24)} day${Math.ceil(hrs / 24) > 1 ? "s" : ""}`;
+                })(),
               },
             ].map(({ label, value }) => (
               <div
@@ -987,6 +1002,84 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
                 </p>
               </div>
             ))}
+          </div>
+
+          {/* Earnings breakdown — driver portion only */}
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 10,
+              padding: "12px 14px",
+              marginBottom: 14,
+            }}
+          >
+            <p
+              style={{
+                fontSize: "11px",
+                fontWeight: "700",
+                color: "#15803d",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                margin: "0 0 8px",
+              }}
+            >
+              Your Earnings
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 13,
+                marginBottom: b.driverFine > 0 ? 4 : 0,
+              }}
+            >
+              <span style={{ color: "#334155" }}>Base earning</span>
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                {b.driverCost > 0 ? `Rs ${b.driverCost.toLocaleString()}` : "—"}
+              </span>
+            </div>
+            {b.driverFine > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 13,
+                  marginBottom: 4,
+                }}
+              >
+                <span style={{ color: "#334155" }}>Late return bonus</span>
+                <span style={{ fontWeight: 600, color: "#15803d" }}>
+                  + Rs {b.driverFine.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {b.status === "Completed" && (
+              <div
+                style={{
+                  borderTop: "1px solid #bbf7d0",
+                  paddingTop: 6,
+                  marginTop: 6,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 13,
+                }}
+              >
+                <span style={{ fontWeight: 700, color: "#0f172a" }}>
+                  Total earned
+                </span>
+                <span
+                  style={{ fontWeight: 800, color: "#15803d", fontSize: 15 }}
+                >
+                  Rs {driverEarning.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {b.status !== "Completed" && b.driverCost > 0 && (
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#64748b" }}>
+                Paid on trip completion
+              </p>
+            )}
           </div>
 
           {isPending && (

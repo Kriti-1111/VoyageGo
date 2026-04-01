@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema(
     isAvailable: { type: Boolean, default: false },
     shiftStart: { type: String },
     shiftEnd: { type: String },
+    driverRatePerHour: { type: Number, default: 200 },
 
     // Address
     permanentAddress: String,

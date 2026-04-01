@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const API = "http://localhost:5000";
-
 function getUser() {
   try {
     return JSON.parse(localStorage.getItem("user"));
@@ -15,40 +14,52 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
-// ── Pricing (mirrors server) ──────────────────────────────────────────────────
-function calcPrice(pricePerHour, startDate, endDate) {
+// ── Pricing mirrors server exactly ────────────────────────────────────────────
+// mode: "hourly" | "daily"
+// Uses Math.ceil for hours and days — matches server
+function calcPrice(
+  pricePerHour,
+  startDate,
+  endDate,
+  driverRatePerHour = 0,
+  mode = "hourly",
+) {
   if (!startDate || !endDate) return null;
   const diffMs = new Date(endDate) - new Date(startDate);
-  const hours = diffMs / (1000 * 60 * 60);
-  const days = hours / 24;
-  if (hours < 1 || hours > 30 * 24) return null;
-  const dailyRate = pricePerHour * 24;
-  if (hours <= 23)
-    return {
-      total: Math.round(hours * pricePerHour),
-      saved: 0,
-      label: null,
-      hours,
-    };
-  if (days <= 6) {
-    const base = dailyRate * days;
-    return {
-      total: Math.round(base * 0.8),
-      saved: Math.round(base * 0.2),
-      label: `${Math.ceil(days)} day${Math.ceil(days) > 1 ? "s" : ""}  —  20% off`,
-      days: Math.ceil(days),
-    };
+  const rawHours = diffMs / (1000 * 60 * 60);
+  const totalHours = Math.ceil(rawHours);
+  const totalDays = Math.ceil(totalHours / 24);
+
+  if (rawHours < 1 || rawHours > 30 * 24) return null;
+
+  const dailyBase = pricePerHour * 24;
+  const vehicleDailyRate = totalDays <= 6 ? dailyBase * 0.8 : dailyBase * 0.7;
+  const driverDailyRate = driverRatePerHour * 8;
+
+  let vehicleCost = 0;
+  let driverCost = 0;
+
+  if (mode === "hourly") {
+    vehicleCost = Math.round(totalHours * pricePerHour);
+    driverCost =
+      driverRatePerHour > 0 ? Math.round(totalHours * driverRatePerHour) : 0;
+  } else {
+    vehicleCost = Math.round(totalDays * vehicleDailyRate);
+    driverCost =
+      driverRatePerHour > 0 ? Math.round(totalDays * driverDailyRate) : 0;
   }
-  if (days <= 30) {
-    const base = dailyRate * days;
-    return {
-      total: Math.round(base * 0.7),
-      saved: Math.round(base * 0.3),
-      label: `${Math.ceil(days)} days  —  30% off`,
-      days: Math.ceil(days),
-    };
-  }
-  return null;
+
+  return {
+    vehicleCost,
+    driverCost,
+    total: vehicleCost + driverCost,
+    vehicleDailyRate: Math.round(vehicleDailyRate),
+    driverDailyRate: Math.round(driverDailyRate),
+    totalHours,
+    totalDays,
+    mode,
+    discount: mode === "daily" ? (totalDays <= 6 ? 20 : 30) : 0,
+  };
 }
 
 function fmtHours(h) {
@@ -79,7 +90,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
   const [search, setSearch] = useState("");
   const ref = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (ref.current && !ref.current.contains(e.target)) onClose();
@@ -96,7 +106,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
       .then(async ({ data }) => {
         const driverList = data.drivers || [];
         setDrivers(driverList);
-        // Fetch availability for conflict display
         const slotMap = {};
         await Promise.all(
           driverList.map(async (d) => {
@@ -201,7 +210,7 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
       </div>
 
       {/* List */}
-      <div style={{ maxHeight: 240, overflowY: "auto" }}>
+      <div style={{ maxHeight: 260, overflowY: "auto" }}>
         {loading && (
           <p
             style={{
@@ -215,7 +224,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
             Loading drivers…
           </p>
         )}
-
         {!loading && filtered.length === 0 && (
           <p
             style={{
@@ -228,14 +236,14 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
           >
             {drivers.length === 0
               ? "No drivers assigned to this vehicle."
-              : "No drivers match your search."}
+              : "No match."}
           </p>
         )}
-
         {!loading &&
           filtered.map((d) => {
             const id = d._id || d.id;
             const conflict = isConflict(id);
+            const rate = d.driverRatePerHour || 0;
             return (
               <div
                 key={id}
@@ -296,6 +304,7 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                       : d.isAvailable
                         ? "Available"
                         : "Offline"}
+                    {rate > 0 && !conflict && ` · Rs ${rate}/hr`}
                   </p>
                 </div>
                 {!conflict && (
@@ -368,8 +377,8 @@ export default function BookingPage() {
   const [endDT, setEndDT] = useState("");
   const [startDate, setStartDate] = useState(todayStr());
   const [numDays, setNumDays] = useState(1);
-  const [driver, setDriver] = useState(null); // null = no driver chosen
-  const [showPop, setShowPop] = useState(false); // driver popup visibility
+  const [driver, setDriver] = useState(null);
+  const [showPop, setShowPop] = useState(false);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -386,14 +395,28 @@ export default function BookingPage() {
 
   const dailyEndDate = startDate ? addDays(startDate, numDays) : "";
 
+  const driverRate = driver?.driverRatePerHour || 0;
+
   const pricing = (() => {
     if (!vehicle) return null;
     if (mode === "hourly") {
       if (!startDT || !endDT) return null;
-      return calcPrice(vehicle.pricePerHour, startDT, endDT);
+      return calcPrice(
+        vehicle.pricePerHour,
+        startDT,
+        endDT,
+        driverRate,
+        "hourly",
+      );
     }
     if (!startDate) return null;
-    return calcPrice(vehicle.pricePerHour, startDate, dailyEndDate);
+    return calcPrice(
+      vehicle.pricePerHour,
+      startDate,
+      dailyEndDate,
+      driverRate,
+      "daily",
+    );
   })();
 
   const validationError = (() => {
@@ -428,6 +451,7 @@ export default function BookingPage() {
       startDate: startISO,
       endDate: endISO,
       notes,
+      mode,
     };
     if (driver) body.driverId = driver._id || driver.id;
     try {
@@ -515,12 +539,10 @@ export default function BookingPage() {
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
         }}
       >
-        {/* Back */}
         <button onClick={() => navigate(-1)} style={backBtn}>
           Back
         </button>
 
-        {/* Title */}
         <h1
           style={{
             margin: "0 0 4px",
@@ -553,7 +575,7 @@ export default function BookingPage() {
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {/* ── Rental type ── */}
+          {/* Rental type toggle */}
           <div>
             <label style={lbl}>Rental type</label>
             <div
@@ -602,7 +624,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* ── Date/time inputs ── */}
+          {/* Date/time inputs */}
           {mode === "hourly" ? (
             <div
               style={{
@@ -700,7 +722,7 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* Duration / date range label — only when filled */}
+          {/* Duration label */}
           {durationLabel && !validationError && (
             <div
               style={{
@@ -734,7 +756,7 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* ── Driver (optional) — button that opens popup ── */}
+          {/* Driver section */}
           <div>
             <label style={lbl}>
               Driver{" "}
@@ -744,7 +766,6 @@ export default function BookingPage() {
             </label>
             <div style={{ position: "relative" }}>
               {driver ? (
-                // Driver selected — show chip
                 <div
                   style={{
                     display: "flex",
@@ -786,6 +807,8 @@ export default function BookingPage() {
                     </p>
                     <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
                       Driver requested
+                      {driver.driverRatePerHour > 0 &&
+                        ` · Rs ${driver.driverRatePerHour}/hr`}
                     </p>
                   </div>
                   <button
@@ -805,7 +828,6 @@ export default function BookingPage() {
                   </button>
                 </div>
               ) : (
-                // No driver — show "Add Driver" button
                 <button
                   onClick={() => setShowPop((p) => !p)}
                   style={{
@@ -852,22 +874,19 @@ export default function BookingPage() {
                 </button>
               )}
 
-              {/* Popup */}
               {showPop && (
                 <DriverPopup
                   vehicleId={carId}
                   startDate={mode === "hourly" ? startDT : startDate}
                   endDate={mode === "hourly" ? endDT : dailyEndDate}
-                  onSelect={(d) => {
-                    setDriver(d);
-                  }}
+                  onSelect={(d) => setDriver(d)}
                   onClose={() => setShowPop(false)}
                 />
               )}
             </div>
           </div>
 
-          {/* ── Notes ── */}
+          {/* Notes */}
           <div>
             <label style={lbl}>
               Notes{" "}
@@ -884,7 +903,7 @@ export default function BookingPage() {
             />
           </div>
 
-          {/* ── Price summary — only when valid ── */}
+          {/* Price summary — shows breakdown */}
           {pricing && !validationError && (
             <div
               style={{
@@ -897,7 +916,7 @@ export default function BookingPage() {
             >
               <p
                 style={{
-                  margin: "0 0 10px",
+                  margin: "0 0 12px",
                   fontSize: 13,
                   fontWeight: 700,
                   color: "#0f172a",
@@ -905,6 +924,8 @@ export default function BookingPage() {
               >
                 Price summary
               </p>
+
+              {/* Vehicle cost row */}
               <div
                 style={{
                   display: "flex",
@@ -914,35 +935,18 @@ export default function BookingPage() {
                 }}
               >
                 <span style={{ color: "#64748b" }}>
-                  {pricing.hours
-                    ? `Rs ${vehicle.pricePerHour}/hr × ${fmtHours(pricing.hours)}`
-                    : `Rs ${(vehicle.pricePerHour * 24).toLocaleString()}/day × ${pricing.days} day${pricing.days > 1 ? "s" : ""}`}
+                  Vehicle rental
+                  {pricing.mode === "hourly"
+                    ? ` (${pricing.totalHours}h × Rs ${vehicle.pricePerHour}/hr)`
+                    : ` (${pricing.totalDays} day${pricing.totalDays > 1 ? "s" : ""} · ${pricing.discount}% off)`}
                 </span>
-                <span style={{ color: "#334155" }}>
-                  Rs{" "}
-                  {(pricing.hours
-                    ? Math.round(pricing.hours * vehicle.pricePerHour)
-                    : Math.round(
-                        vehicle.pricePerHour * 24 * (pricing.days || 1),
-                      )
-                  ).toLocaleString()}
+                <span style={{ color: "#334155", fontWeight: 600 }}>
+                  Rs {pricing.vehicleCost.toLocaleString()}
                 </span>
               </div>
-              {pricing.saved > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 13,
-                    marginBottom: 6,
-                    color: "#16a34a",
-                  }}
-                >
-                  <span>{pricing.label}</span>
-                  <span>− Rs {pricing.saved.toLocaleString()}</span>
-                </div>
-              )}
-              {driver && (
+
+              {/* Driver cost row */}
+              {driver && driverRate > 0 && (
                 <div
                   style={{
                     display: "flex",
@@ -952,13 +956,34 @@ export default function BookingPage() {
                   }}
                 >
                   <span style={{ color: "#64748b" }}>
-                    Driver: {driver.name}
+                    Driver fee
+                    {pricing.mode === "hourly"
+                      ? ` (${pricing.totalHours}h × Rs ${driverRate}/hr)`
+                      : ` (${pricing.totalDays} day${pricing.totalDays > 1 ? "s" : ""} × Rs ${pricing.driverDailyRate}/day)`}
                   </span>
+                  <span style={{ color: "#334155", fontWeight: 600 }}>
+                    Rs {pricing.driverCost.toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {driver && driverRate === 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span style={{ color: "#64748b" }}>Driver fee</span>
                   <span style={{ color: "#16a34a", fontWeight: 600 }}>
                     Included
                   </span>
                 </div>
               )}
+
+              {/* Divider + total */}
               <div
                 style={{
                   borderTop: "1px solid #e2e8f0",
@@ -979,27 +1004,27 @@ export default function BookingPage() {
                   Rs {pricing.total.toLocaleString()}
                 </span>
               </div>
-              {pricing.saved > 0 && (
+
+              {pricing.driverCost > 0 && (
                 <p
-                  style={{
-                    margin: "6px 0 0",
-                    fontSize: 12,
-                    color: "#16a34a",
-                    fontWeight: 600,
-                  }}
+                  style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}
                 >
-                  You save Rs {pricing.saved.toLocaleString()}!
+                  Driver included · Late returns: Rs {vehicle.pricePerHour}/hr
+                  (vehicle) + Rs {driverRate}/hr (driver)
                 </p>
               )}
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}>
-                {driver
-                  ? "Driver will confirm before payment is collected."
-                  : "Pay immediately after confirming booking."}
-              </p>
+              {!driver && (
+                <p
+                  style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}
+                >
+                  No driver · Late returns charged at Rs {vehicle.pricePerHour}
+                  /hr
+                </p>
+              )}
             </div>
           )}
 
-          {/* ── Submit ── */}
+          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}

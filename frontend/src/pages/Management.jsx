@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   FaChartBar,
@@ -18,6 +18,7 @@ import {
   FaUserSlash,
   FaMoneyBill,
   FaUserPlus,
+  FaCamera,
 } from "react-icons/fa";
 import { ENDPOINTS, BASE_URL } from "../services/api.js";
 
@@ -102,7 +103,7 @@ const STATUS_LABEL = {
   Cancelled: "Cancelled",
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function PanelHeader({ title, subtitle, action }) {
   return (
     <div
@@ -135,7 +136,6 @@ function PanelHeader({ title, subtitle, action }) {
     </div>
   );
 }
-
 function EmptyState({ icon, label, hint }) {
   return (
     <div style={{ padding: "56px 24px", textAlign: "center" }}>
@@ -171,7 +171,6 @@ function EmptyState({ icon, label, hint }) {
     </div>
   );
 }
-
 function Spinner() {
   return (
     <div style={{ textAlign: "center", padding: "48px" }}>
@@ -191,7 +190,6 @@ function Spinner() {
     </div>
   );
 }
-
 function StatCard({ title, value, subtitle, icon, accent }) {
   return (
     <div
@@ -275,7 +273,7 @@ function StatCard({ title, value, subtitle, icon, accent }) {
   );
 }
 
-// ── Bookings table ─────────────────────────────────────────────────────────────
+// ─── Bookings Table ───────────────────────────────────────────────────────────
 function BookingsTable({
   bookings,
   onCashPayment,
@@ -286,7 +284,6 @@ function BookingsTable({
   const headers = showActions
     ? ["Customer", "Vehicle", "Status", "Payment", "Total", "Date", "Actions"]
     : ["Customer", "Vehicle", "Status", "Payment", "Total", "Date"];
-
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -320,7 +317,6 @@ function BookingsTable({
               showActions && !["Completed", "Cancelled"].includes(b.status);
             const canCash =
               showActions && b.status === "Confirmed" && ps === "Unpaid";
-
             return (
               <tr
                 key={b._id || i}
@@ -519,7 +515,7 @@ function BookingsTable({
   );
 }
 
-// ── Overview ──────────────────────────────────────────────────────────────────
+// ─── Overview Panel ───────────────────────────────────────────────────────────
 function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
   const stats =
     role === "STAFF"
@@ -578,7 +574,6 @@ function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
             accent: "#6366f1",
           },
         ];
-
   return (
     <div>
       <div
@@ -648,20 +643,18 @@ function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
   );
 }
 
-// ── Assign Drivers Modal ──────────────────────────────────────────────────────
+// ─── Assign Drivers Modal ─────────────────────────────────────────────────────
 function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
   const [allDrivers, setAllDrivers] = useState([]);
   const [selectedIds, setSelectedIds] = useState(
-    (vehicle.drivers || []).map((d) => d._id || d),
+    (vehicle.drivers || []).map((d) => d._id || d.id || d),
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     axios
-      .get(`${ENDPOINTS.DRIVERS}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      .get(ENDPOINTS.DRIVERS, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) =>
         setAllDrivers(
           Array.isArray(r.data) ? r.data.filter((d) => d.isDriverVerified) : [],
@@ -669,8 +662,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
       )
       .catch(() => setAllDrivers([]))
       .finally(() => setLoading(false));
-    // eslint-disable-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(id) {
     setSelectedIds((prev) =>
@@ -721,7 +713,6 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
           boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
         }}
       >
-        {/* Header */}
         <div
           style={{
             padding: "20px 24px",
@@ -754,28 +745,23 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
               fontSize: 20,
               color: "#94a3b8",
               cursor: "pointer",
-              lineHeight: 1,
             }}
           >
             &times;
           </button>
         </div>
-
-        {/* Info */}
         <div
           style={{
-            padding: "12px 24px",
+            padding: "10px 24px",
             background: "#f8fafc",
             borderBottom: "1px solid #f1f5f9",
           }}
         >
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-            Selected drivers will be auto-assigned to bookings for this vehicle.
-            Only verified drivers are shown.
+            Only verified drivers are shown. Selected drivers will be
+            auto-assigned to bookings for this vehicle.
           </p>
         </div>
-
-        {/* Driver list */}
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 24px" }}>
           {loading ? (
             <p
@@ -812,7 +798,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    padding: "12px 14px",
+                    padding: "11px 14px",
                     borderRadius: 10,
                     cursor: "pointer",
                     marginBottom: 6,
@@ -851,8 +837,8 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                     </p>
                     <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
                       {d.isAvailable ? "Online" : "Offline"}
-                      {d.languages?.length > 0 &&
-                        ` · ${d.languages.join(", ")}`}
+                      {d.driverRatePerHour > 0 &&
+                        ` · Rs ${d.driverRatePerHour}/hr`}
                     </p>
                   </div>
                   <div
@@ -876,8 +862,6 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                         fill="none"
                         stroke="#fff"
                         strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
                       >
                         <polyline points="20 6 9 17 4 12" />
                       </svg>
@@ -888,8 +872,6 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
             })
           )}
         </div>
-
-        {/* Footer */}
         <div
           style={{
             padding: "16px 24px",
@@ -943,13 +925,395 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
   );
 }
 
-// ── Vehicles panel ─────────────────────────────────────────────────────────────
+// ─── Image Picker ─────────────────────────────────────────────────────────────
+// Converts a selected file to base64. Displays preview. Returns base64 string via onChange.
+function ImagePicker({ value, onChange }) {
+  const inputRef = useRef(null);
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Image must be under 3MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => onChange(ev.target.result); // base64 string
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
+        style={{ display: "none" }}
+      />
+      {value ? (
+        <div
+          style={{
+            position: "relative",
+            height: 120,
+            borderRadius: 10,
+            overflow: "hidden",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <img
+            src={value}
+            alt="Vehicle"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          <button
+            onClick={() => {
+              onChange("");
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              background: "rgba(0,0,0,0.55)",
+              border: "none",
+              borderRadius: "50%",
+              width: 24,
+              height: 24,
+              color: "#fff",
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            &times;
+          </button>
+          <button
+            onClick={() => inputRef.current?.click()}
+            style={{
+              position: "absolute",
+              bottom: 6,
+              right: 6,
+              background: "rgba(0,0,0,0.55)",
+              border: "none",
+              borderRadius: 7,
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "4px 8px",
+            }}
+          >
+            Change
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => inputRef.current?.click()}
+          style={{
+            width: "100%",
+            height: 90,
+            border: "1.5px dashed #c7d2fe",
+            borderRadius: 10,
+            background: "#f8faff",
+            color: "#6366f1",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#eef2ff";
+            e.currentTarget.style.borderColor = "#6366f1";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#f8faff";
+            e.currentTarget.style.borderColor = "#c7d2fe";
+          }}
+        >
+          <FaCamera style={{ fontSize: 16 }} /> Upload vehicle photo
+        </button>
+      )}
+      <p style={{ margin: "4px 0 0", fontSize: 11, color: "#94a3b8" }}>
+        JPG or PNG · max 3MB
+      </p>
+    </div>
+  );
+}
+
+// ─── Update Image Modal ───────────────────────────────────────────────────────
+function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
+  const existingImg = vehicle.imageUrl
+    ? vehicle.imageUrl.startsWith("data:")
+      ? vehicle.imageUrl
+      : `${BASE_URL}/${vehicle.imageUrl}`
+    : "";
+  const [preview, setPreview] = useState(existingImg);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Image must be under 3MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await axios.patch(
+        `${ENDPOINTS.VEHICLES}/${vehicle._id || vehicle.id}`,
+        { imageUrl: preview },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      onSaved();
+      onClose();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to save image.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 420,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "18px 22px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 15,
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
+              {vehicle.imageUrl ? "Update Vehicle Photo" : "Add Vehicle Photo"}
+            </h3>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#64748b" }}>
+              {vehicle.name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 20,
+              color: "#94a3b8",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Image area */}
+        <div style={{ padding: "20px 22px" }}>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            style={{ display: "none" }}
+          />
+
+          {preview ? (
+            <div
+              style={{
+                position: "relative",
+                height: 180,
+                borderRadius: 12,
+                overflow: "hidden",
+                border: "1px solid #e2e8f0",
+                marginBottom: 12,
+              }}
+            >
+              <img
+                src={preview}
+                alt="Preview"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <button
+                onClick={() => {
+                  setPreview("");
+                  if (inputRef.current) inputRef.current.value = "";
+                }}
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  background: "rgba(0,0,0,0.6)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: 26,
+                  height: 26,
+                  color: "#fff",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => inputRef.current?.click()}
+              style={{
+                height: 160,
+                border: "2px dashed #c7d2fe",
+                borderRadius: 12,
+                background: "#f8faff",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: "pointer",
+                marginBottom: 12,
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#eef2ff";
+                e.currentTarget.style.borderColor = "#6366f1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f8faff";
+                e.currentTarget.style.borderColor = "#c7d2fe";
+              }}
+            >
+              <FaCamera style={{ fontSize: 24, color: "#6366f1" }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1" }}>
+                Click to upload photo
+              </span>
+              <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                JPG or PNG · max 3MB
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={() => inputRef.current?.click()}
+            style={{
+              width: "100%",
+              padding: "8px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#334155",
+              background: "#f8fafc",
+              cursor: "pointer",
+            }}
+          >
+            {preview ? "Choose different photo" : "Browse files"}
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "14px 22px",
+            borderTop: "1px solid #f1f5f9",
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "9px 20px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#64748b",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !preview}
+            style={{
+              padding: "9px 20px",
+              border: "none",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#fff",
+              background:
+                !preview || saving
+                  ? "#e2e8f0"
+                  : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              cursor: !preview || saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? "Saving…" : "Save Photo"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vehicles Panel ───────────────────────────────────────────────────────────
 function VehiclesPanel({ isAdmin }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [assignTarget, setAssignTarget] = useState(null); // vehicle being assigned drivers
+  const [assignTarget, setAssignTarget] = useState(null);
+  const [imageTarget, setImageTarget] = useState(null);
   const [form, setForm] = useState({
     name: "",
     type: "",
@@ -960,6 +1324,7 @@ function VehiclesPanel({ isAdmin }) {
     fuelType: "",
     plateNumber: "",
     description: "",
+    imageUrl: "",
   });
   const token = localStorage.getItem("token");
 
@@ -970,7 +1335,6 @@ function VehiclesPanel({ isAdmin }) {
   const fetchV = async () => {
     try {
       setLoading(true);
-      // Use admin endpoint to get all vehicles including inactive
       const { data } = await axios.get(ENDPOINTS.VEHICLES, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -999,6 +1363,7 @@ function VehiclesPanel({ isAdmin }) {
         fuelType: "",
         plateNumber: "",
         description: "",
+        imageUrl: "",
       });
       fetchV();
     } catch (e) {
@@ -1020,9 +1385,31 @@ function VehiclesPanel({ isAdmin }) {
     }
   };
 
+  const removeDriver = async (vehicleId, driverId, currentDrivers) => {
+    const newIds = currentDrivers
+      .map((d) => d._id || d.id || d)
+      .filter((id) => String(id) !== String(driverId));
+    try {
+      await axios.patch(
+        `${ENDPOINTS.VEHICLES}/${vehicleId}/drivers`,
+        { driverIds: newIds },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      fetchV();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to remove driver.");
+    }
+  };
+
+  // Helper to get image src — handles base64 and URL paths
+  function imgSrc(v) {
+    if (!v.imageUrl) return null;
+    if (v.imageUrl.startsWith("data:")) return v.imageUrl;
+    return `${BASE_URL}/${v.imageUrl}`;
+  }
+
   return (
     <div>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -1086,7 +1473,7 @@ function VehiclesPanel({ isAdmin }) {
             }}
           >
             {[
-              { key: "name", label: "Name", ph: "Toyota Hiace" },
+              { key: "name", label: "Name", ph: "Toyota HiAce" },
               { key: "model", label: "Model", ph: "2022" },
               { key: "company", label: "Company", ph: "Toyota" },
               { key: "plateNumber", label: "Plate", ph: "BA 1 KHA 1234" },
@@ -1180,7 +1567,28 @@ function VehiclesPanel({ isAdmin }) {
                 </select>
               </div>
             ))}
+
+            {/* Image upload — spans full width */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  color: "#64748b",
+                  display: "block",
+                  marginBottom: "6px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Vehicle Photo
+              </label>
+              <ImagePicker
+                value={form.imageUrl}
+                onChange={(val) => setForm((p) => ({ ...p, imageUrl: val }))}
+              />
+            </div>
           </div>
+
           <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
             <button
               onClick={() => setShowForm(false)}
@@ -1240,7 +1648,7 @@ function VehiclesPanel({ isAdmin }) {
           {vehicles.map((v) => {
             const assignedDrivers = v.drivers || [];
             const driverCount = assignedDrivers.length;
-
+            const img = imgSrc(v);
             return (
               <div key={v._id || v.id} style={{ ...card, padding: "16px" }}>
                 {/* Image */}
@@ -1256,9 +1664,9 @@ function VehiclesPanel({ isAdmin }) {
                     justifyContent: "center",
                   }}
                 >
-                  {v.imageUrl ? (
+                  {img ? (
                     <img
-                      src={`${BASE_URL}/${v.imageUrl}`}
+                      src={img}
                       alt={v.name}
                       style={{
                         width: "100%",
@@ -1289,7 +1697,7 @@ function VehiclesPanel({ isAdmin }) {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "flex-start",
-                    marginBottom: 8,
+                    marginBottom: 10,
                   }}
                 >
                   <div>
@@ -1324,7 +1732,7 @@ function VehiclesPanel({ isAdmin }) {
                   </span>
                 </div>
 
-                {/* Assigned drivers section */}
+                {/* Assigned drivers */}
                 <div style={{ marginBottom: 10 }}>
                   <div
                     style={{
@@ -1357,7 +1765,6 @@ function VehiclesPanel({ isAdmin }) {
                         : "None"}
                     </span>
                   </div>
-
                   {driverCount === 0 ? (
                     <p
                       style={{
@@ -1385,7 +1792,7 @@ function VehiclesPanel({ isAdmin }) {
                         const dName = d.name || "Driver";
                         return (
                           <div
-                            key={dId}
+                            key={String(dId)}
                             style={{
                               display: "flex",
                               alignItems: "center",
@@ -1443,33 +1850,30 @@ function VehiclesPanel({ isAdmin }) {
                                   · {d.isAvailable ? "Online" : "Offline"}
                                 </span>
                               )}
+                              {d.driverRatePerHour > 0 && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: "#6366f1",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  · Rs {d.driverRatePerHour}/hr
+                                </span>
+                              )}
                             </div>
                             {isAdmin && (
                               <button
-                                onClick={async () => {
-                                  const newIds = assignedDrivers
-                                    .map((x) => x._id || x.id || x)
-                                    .filter((id) => String(id) !== String(dId));
-                                  try {
-                                    await axios.patch(
-                                      `${ENDPOINTS.VEHICLES}/${v._id || v.id}/drivers`,
-                                      { driverIds: newIds },
-                                      {
-                                        headers: {
-                                          Authorization: `Bearer ${token}`,
-                                        },
-                                      },
-                                    );
-                                    fetchV();
-                                  } catch (e) {
-                                    alert(
-                                      e.response?.data?.message ||
-                                        "Failed to remove driver.",
-                                    );
-                                  }
-                                }}
+                                onClick={() =>
+                                  removeDriver(
+                                    v._id || v.id,
+                                    dId,
+                                    assignedDrivers,
+                                  )
+                                }
+                                title="Remove from vehicle"
                                 style={{
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: 700,
                                   color: "#dc2626",
                                   background: "none",
@@ -1477,6 +1881,7 @@ function VehiclesPanel({ isAdmin }) {
                                   cursor: "pointer",
                                   padding: "2px 6px",
                                   borderRadius: 5,
+                                  lineHeight: 1,
                                 }}
                                 onMouseEnter={(e) =>
                                   (e.currentTarget.style.background = "#fff1f2")
@@ -1484,7 +1889,6 @@ function VehiclesPanel({ isAdmin }) {
                                 onMouseLeave={(e) =>
                                   (e.currentTarget.style.background = "none")
                                 }
-                                title="Remove driver from this vehicle"
                               >
                                 ✕
                               </button>
@@ -1498,50 +1902,85 @@ function VehiclesPanel({ isAdmin }) {
 
                 {/* Actions */}
                 {isAdmin && (
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => setAssignTarget(v)}
+                        style={{
+                          flex: 1,
+                          padding: "7px",
+                          border: "1px solid #c7d2fe",
+                          borderRadius: "7px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#6366f1",
+                          background: "#eef2ff",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 5,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#6366f1";
+                          e.currentTarget.style.color = "#fff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#eef2ff";
+                          e.currentTarget.style.color = "#6366f1";
+                        }}
+                      >
+                        <FaUserPlus style={{ fontSize: 10 }} /> Assign Drivers
+                      </button>
+                      <button
+                        onClick={() => deleteV(v._id || v.id)}
+                        style={{
+                          flex: 1,
+                          padding: "7px",
+                          border: "1px solid #fca5a5",
+                          borderRadius: "7px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#dc2626",
+                          background: "#fff",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                     <button
-                      onClick={() => setAssignTarget(v)}
+                      onClick={() => setImageTarget(v)}
                       style={{
-                        flex: 1,
+                        width: "100%",
                         padding: "7px",
-                        border: "1px solid #c7d2fe",
+                        border: "1px solid #e2e8f0",
                         borderRadius: "7px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#6366f1",
-                        background: "#eef2ff",
+                        color: "#334155",
+                        background: "#f8fafc",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        gap: 4,
+                        gap: 6,
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#6366f1";
-                        e.currentTarget.style.color = "#fff";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#eef2ff";
-                        e.currentTarget.style.color = "#6366f1";
-                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#f1f5f9")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "#f8fafc")
+                      }
                     >
-                      + Assign Drivers
-                    </button>
-                    <button
-                      onClick={() => deleteV(v._id || v.id)}
-                      style={{
-                        flex: 1,
-                        padding: "7px",
-                        border: "1px solid #fca5a5",
-                        borderRadius: "7px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#dc2626",
-                        background: "#fff",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
+                      <FaCamera style={{ fontSize: 10 }} />{" "}
+                      {v.imageUrl ? "Update Photo" : "Add Photo"}
                     </button>
                   </div>
                 )}
@@ -1551,7 +1990,6 @@ function VehiclesPanel({ isAdmin }) {
         </div>
       )}
 
-      {/* Assign drivers modal */}
       {assignTarget && (
         <AssignDriversModal
           vehicle={assignTarget}
@@ -1560,15 +1998,25 @@ function VehiclesPanel({ isAdmin }) {
           onSaved={fetchV}
         />
       )}
+      {imageTarget && (
+        <UpdateImageModal
+          vehicle={imageTarget}
+          token={token}
+          onClose={() => setImageTarget(null)}
+          onSaved={fetchV}
+        />
+      )}
     </div>
   );
 }
 
-// ── Drivers panel ─────────────────────────────────────────────────────────────
+// ─── Drivers Panel ─────────────────────────────────────────────────────────────
 function DriversPanel({ isAdmin }) {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [verifyingId, setVerifyingId] = useState(null);
+  const [editingRate, setEditingRate] = useState(null); // { id, value }
+  const [savingRate, setSavingRate] = useState(null);
   const [filter, setFilter] = useState("all");
   const token = localStorage.getItem("token");
 
@@ -1609,6 +2057,35 @@ function DriversPanel({ isAdmin }) {
       alert(e.response?.data?.message || "Failed.");
     } finally {
       setVerifyingId(null);
+    }
+  };
+
+  const saveRate = async (driverId) => {
+    if (!editingRate || editingRate.id !== driverId) return;
+    const rate = parseInt(editingRate.value);
+    if (isNaN(rate) || rate < 0) {
+      alert("Enter a valid rate (Rs per hour).");
+      return;
+    }
+    setSavingRate(driverId);
+    try {
+      await axios.patch(
+        `${ENDPOINTS.DRIVERS}/${driverId}/rate`,
+        { driverRatePerHour: rate },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setDrivers((prev) =>
+        prev.map((d) =>
+          d._id === driverId || d.id === driverId
+            ? { ...d, driverRatePerHour: rate }
+            : d,
+        ),
+      );
+      setEditingRate(null);
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to save rate.");
+    } finally {
+      setSavingRate(null);
     }
   };
 
@@ -1705,10 +2182,10 @@ function DriversPanel({ isAdmin }) {
                   "Driver",
                   "Email",
                   "Phone",
-                  "License No",
                   "Availability",
+                  "Rate (Rs/hr)",
                   "Status",
-                  ...(isAdmin ? ["Action"] : []),
+                  ...(isAdmin ? ["Actions"] : []),
                 ].map((h) => (
                   <th
                     key={h}
@@ -1733,6 +2210,7 @@ function DriversPanel({ isAdmin }) {
                 const isV = d.isDriverVerified === true;
                 const dId = d._id || d.id;
                 const isLoad = verifyingId === dId;
+                const isEditingThisRate = editingRate?.id === dId;
                 return (
                   <tr
                     key={dId || i}
@@ -1798,15 +2276,6 @@ function DriversPanel({ isAdmin }) {
                     >
                       {d.phone || "—"}
                     </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        fontSize: "13px",
-                        color: "#334155",
-                      }}
-                    >
-                      {d.licenseNo || "—"}
-                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span
                         style={{
@@ -1821,6 +2290,114 @@ function DriversPanel({ isAdmin }) {
                         {d.isAvailable ? "Online" : "Offline"}
                       </span>
                     </td>
+
+                    {/* Driver rate — inline editable */}
+                    <td style={{ padding: "10px 16px" }}>
+                      {isAdmin ? (
+                        isEditingThisRate ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 5,
+                            }}
+                          >
+                            <input
+                              type="number"
+                              value={editingRate.value}
+                              onChange={(e) =>
+                                setEditingRate({
+                                  id: dId,
+                                  value: e.target.value,
+                                })
+                              }
+                              style={{
+                                width: 72,
+                                padding: "5px 8px",
+                                border: "1.5px solid #6366f1",
+                                borderRadius: 7,
+                                fontSize: 12,
+                                outline: "none",
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveRate(dId);
+                                if (e.key === "Escape") setEditingRate(null);
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => saveRate(dId)}
+                              disabled={savingRate === dId}
+                              style={{
+                                padding: "5px 10px",
+                                border: "none",
+                                borderRadius: 6,
+                                background: "#6366f1",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {savingRate === dId ? "…" : "Save"}
+                            </button>
+                            <button
+                              onClick={() => setEditingRate(null)}
+                              style={{
+                                padding: "5px 8px",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 6,
+                                background: "#fff",
+                                color: "#64748b",
+                                fontSize: 11,
+                                cursor: "pointer",
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              setEditingRate({
+                                id: dId,
+                                value: String(d.driverRatePerHour || 200),
+                              })
+                            }
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: d.driverRatePerHour
+                                ? "#0f172a"
+                                : "#94a3b8",
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              textAlign: "left",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#f8fafc")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "none")
+                            }
+                          >
+                            {d.driverRatePerHour
+                              ? `Rs ${d.driverRatePerHour}`
+                              : "Set rate"}
+                          </button>
+                        )
+                      ) : (
+                        <span style={{ fontSize: 13, color: "#334155" }}>
+                          {d.driverRatePerHour
+                            ? `Rs ${d.driverRatePerHour}`
+                            : "—"}
+                        </span>
+                      )}
+                    </td>
+
                     <td style={{ padding: "12px 16px" }}>
                       <span
                         style={{
@@ -1901,7 +2478,7 @@ function DriversPanel({ isAdmin }) {
   );
 }
 
-// ── Customers panel ───────────────────────────────────────────────────────────
+// ─── Customers Panel ──────────────────────────────────────────────────────────
 function CustomersPanel() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2122,7 +2699,7 @@ function GenericPanel({ title, subtitle, icon, hint }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Management() {
   const user = (() => {
     try {
@@ -2159,7 +2736,6 @@ export default function Management() {
       .then((r) => setBookings(Array.isArray(r.data) ? r.data : []))
       .catch(() => {});
   };
-
   const handleCashPayment = async (id) => {
     try {
       await axios.patch(
@@ -2172,7 +2748,6 @@ export default function Management() {
       alert(e.response?.data?.message || "Failed.");
     }
   };
-
   const handleCancel = async (id) => {
     try {
       await axios.patch(
@@ -2435,7 +3010,6 @@ export default function Management() {
           })}
         </nav>
       </aside>
-
       <div
         style={{
           flex: 1,

@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 
 export const BOOKING_STATUS = {
-  PENDING_DRIVER: "PendingDriver", // waiting for driver to accept
-  CONFIRMED: "Confirmed", // driver accepted, waiting for payment
-  ACTIVE: "Active", // driver accepted + payment paid → auto-activated
-  COMPLETED: "Completed", // vehicle returned
-  CANCELLED: "Cancelled", // driver rejected / no drivers / customer cancelled
+  PENDING_DRIVER: "PendingDriver",
+  CONFIRMED: "Confirmed",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 export const PAYMENT_STATUS = {
@@ -33,7 +33,16 @@ const bookingSchema = new mongoose.Schema(
 
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
+
+    // Price breakdown — stored separately so we can show the split on receipts
+    vehicleCost: { type: Number, default: 0 },
+    driverCost: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true, min: 0 },
+
+    // Stored at booking creation — used for consistent fine calculation at return
+    mode: { type: String, enum: ["hourly", "daily"], default: "hourly" },
+    vehicleDailyRate: { type: Number, default: 0 }, // pricePerHour × 24 × discount
+    driverDailyRate: { type: Number, default: 0 }, // driverRatePerHour × 8
 
     status: {
       type: String,
@@ -43,12 +52,9 @@ const bookingSchema = new mongoose.Schema(
 
     notes: { type: String, default: "" },
 
-    // Tracks which drivers were tried (for auto-reassignment on reject)
     rejectedDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
-    // Payment ─────────────────────────────────────────────────────────────────
-    // Flow: Unpaid → Paid (instant on gateway confirm / admin cash entry)
-    // No PendingApproval step.
+    // Payment
     paymentStatus: {
       type: String,
       enum: Object.values(PAYMENT_STATUS),
@@ -68,19 +74,22 @@ const bookingSchema = new mongoose.Schema(
     },
     paidAt: { type: Date, default: null },
 
-    // Pre-trip photos (optional — do not block trip start) ────────────────────
+    // Pre-trip photos (optional)
     preTrip: {
       photos: { type: [String], default: [] },
       submittedAt: { type: Date, default: null },
     },
 
-    // Post-trip ───────────────────────────────────────────────────────────────
+    // Post-trip
     postTrip: {
       submittedAt: { type: Date, default: null },
     },
 
-    // Fine ────────────────────────────────────────────────────────────────────
-    fine: { type: Number, default: 0 },
+    // Fine breakdown
+    vehicleFine: { type: Number, default: 0 },
+    driverFine: { type: Number, default: 0 },
+    fine: { type: Number, default: 0 }, // vehicleFine + driverFine
+
     returnedAt: { type: Date, default: null },
   },
   { timestamps: true },

@@ -3,7 +3,7 @@ import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
 import Notification, { NOTIF_TYPES } from "../models/Notification.js";
 
-// ── Silent notification helper ────────────────────────────────────────────────
+// ── Notification helper ───────────────────────────────────────────────────────
 async function notify({ recipient, type, title, message, booking }) {
   try {
     await Notification.create({ recipient, type, title, message, booking });
@@ -12,39 +12,129 @@ async function notify({ recipient, type, title, message, booking }) {
   }
 }
 
-// ── Pricing (server-side, never trust client) ─────────────────────────────────
-// Hourly 1–23h:  no discount
-// Daily  1–6d:   20% off (× 0.80)
-// Weekly 7–30d:  30% off (× 0.70)
-export function calculatePrice(pricePerHour, startDate, endDate) {
+// ── Price calculation ─────────────────────────────────────────────────────────
+// Returns { vehicleCost, driverCost, total } or null if invalid duration.
+//
+// Vehicle pricing:
+//   Hourly (1–23h):  hours × pricePerHour                    (no discount)
+//   Daily  (1–6d):   days × pricePerHour × 24 × 0.80         (20% off)
+//   Weekly (7–30d):  days × pricePerHour × 24 × 0.70         (30% off)
+//
+// Driver pricing (only when driver assigned):
+//   Hourly:  hours × driverRatePerHour
+//   Daily:   days × (driverRatePerHour × 8)   (8 working hours assumed)
+//
+// ── Pricing engine ────────────────────────────────────────────────────────────
+//
+// mode: "hourly" | "daily"
+//
+// Hourly:
+//   totalHours = ceil(diffHours)
+//   vehicleCost = totalHours × pricePerHour
+//   driverCost  = totalHours × driverRatePerHour
+//
+// Daily:
+//   totalHours = ceil(diffHours)
+//   totalDays  = ceil(totalHours / 24)
+//   vehicleDailyRate = pricePerHour × 24 × (0.8 if days ≤6, else 0.7)
+//   driverDailyRate  = driverRatePerHour × 8
+//   vehicleCost = totalDays × vehicleDailyRate
+//   driverCost  = totalDays × driverDailyRate
+//
+// Returns all intermediate values so fine calculation can reuse daily rates.
+//
+export function calculatePrice(
+  pricePerHour,
+  startDate,
+  endDate,
+  driverRatePerHour = 0,
+  mode = "hourly",
+) {
   const diffMs = new Date(endDate) - new Date(startDate);
-  const hours = diffMs / (1000 * 60 * 60);
-  const days = hours / 24;
+  const rawHours = diffMs / (1000 * 60 * 60);
+  const totalHours = Math.ceil(rawHours);
+  const totalDays = Math.ceil(totalHours / 24);
 
-  if (hours < 1 || hours > 30 * 24) return null;
+  if (rawHours < 1 || rawHours > 30 * 24) return null;
 
-  const dailyRate = pricePerHour * 24;
-  if (hours <= 23) return Math.round(hours * pricePerHour);
-  if (days <= 6) return Math.round(days * dailyRate * 0.8);
-  if (days <= 30) return Math.round(days * dailyRate * 0.7);
-  return null;
+  const dailyBase = pricePerHour * 24;
+  const vehicleDailyRate = totalDays <= 6 ? dailyBase * 0.8 : dailyBase * 0.7;
+  const driverDailyRate = driverRatePerHour * 8;
+
+  let vehicleCost = 0;
+  let driverCost = 0;
+
+  if (mode === "hourly") {
+    vehicleCost = Math.round(totalHours * pricePerHour);
+    driverCost =
+      driverRatePerHour > 0 ? Math.round(totalHours * driverRatePerHour) : 0;
+  } else {
+    vehicleCost = Math.round(totalDays * vehicleDailyRate);
+    driverCost =
+      driverRatePerHour > 0 ? Math.round(totalDays * driverDailyRate) : 0;
+  }
+
+  return {
+    vehicleCost,
+    driverCost,
+    total: vehicleCost + driverCost,
+    // Preserved for fine calculation at return time
+    vehicleDailyRate: Math.round(vehicleDailyRate),
+    driverDailyRate: Math.round(driverDailyRate),
+    totalHours,
+    totalDays,
+    mode,
+  };
 }
 
 // ── Fine calculation ──────────────────────────────────────────────────────────
-// Grace period: ≤30 min → no fine
-// 1–6 late hrs: lateHours × pricePerHour
-// >6 late hrs:  one full daily rate (pricePerHour × 24 × 0.80)
-export function calculateFine(pricePerHour, scheduledEnd, actualReturn) {
+//
+// Needs vehicleDailyRate and driverDailyRate from the original booking
+// (stored at creation time) so discount is applied consistently.
+//
+// Grace period: ≤ 30 min → no fine
+// 1–6 late hours: lateHours × hourly rate
+// > 6 late hours: one full daily rate (vehicle + driver)
+//
+export function calculateFine(
+  pricePerHour,
+  driverRatePerHour = 0,
+  scheduledEnd,
+  actualReturn,
+  vehicleDailyRate = null,
+  driverDailyRate = null,
+) {
   const delayMs = new Date(actualReturn) - new Date(scheduledEnd);
   const delayMins = delayMs / (1000 * 60);
-  if (delayMins <= 30) return 0;
+
+  if (delayMins <= 30)
+    return { vehicleFine: 0, driverFine: 0, total: 0, lateHours: 0 };
+
   const lateHours = Math.ceil(delayMins / 60);
-  const dailyRate = pricePerHour * 24 * 0.8;
-  if (lateHours > 6) return Math.round(dailyRate);
-  return Math.round(lateHours * pricePerHour);
+
+  // Fall back to calculating daily rates if not stored on booking (backwards compat)
+  const vDailyRate = vehicleDailyRate || Math.round(pricePerHour * 24 * 0.8);
+  const dDailyRate = driverDailyRate || Math.round(driverRatePerHour * 8);
+
+  const vehicleFine =
+    lateHours > 6 ? vDailyRate : Math.round(lateHours * pricePerHour);
+
+  const driverFine =
+    driverRatePerHour > 0
+      ? lateHours > 6
+        ? dDailyRate
+        : Math.round(lateHours * driverRatePerHour)
+      : 0;
+
+  return {
+    vehicleFine,
+    driverFine,
+    total: vehicleFine + driverFine,
+    lateHours,
+  };
 }
 
-// ── Find first available driver from pool ─────────────────────────────────────
+// ── Auto-assign driver ────────────────────────────────────────────────────────
 async function findAvailableDriver(
   vehicleDrivers,
   startDate,
@@ -70,7 +160,7 @@ async function findAvailableDriver(
   return null;
 }
 
-// ── Auto-activate when driver accepted AND payment paid ───────────────────────
+// ── Auto-activate ─────────────────────────────────────────────────────────────
 async function tryAutoActivate(booking) {
   if (
     booking.status === BOOKING_STATUS.CONFIRMED &&
@@ -94,15 +184,22 @@ async function tryAutoActivate(booking) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER: Create booking
 // POST /api/bookings
-//
-// KEY LOGIC:
-//   - Customer explicitly chose a driver → status: PendingDriver (driver must accept)
-//   - No driver chosen + vehicle has drivers → auto-assign → status: PendingDriver
-//   - No driver chosen + vehicle has NO drivers → status: Confirmed (go straight to payment)
 // ─────────────────────────────────────────────────────────────────────────────
 export const createBooking = async (req, res) => {
   try {
-    const { vehicleId, startDate, endDate, notes, driverId } = req.body;
+    const {
+      vehicleId,
+      startDate,
+      endDate,
+      notes,
+      driverId,
+      mode = "hourly",
+    } = req.body;
+    if (!["hourly", "daily"].includes(mode)) {
+      return res
+        .status(400)
+        .json({ message: 'mode must be "hourly" or "daily".' });
+    }
 
     if (!vehicleId || !startDate || !endDate) {
       return res
@@ -113,11 +210,10 @@ export const createBooking = async (req, res) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    if (end <= start) {
+    if (end <= start)
       return res
         .status(400)
         .json({ message: "End date must be after start date." });
-    }
 
     const vehicle = await Vehicle.findById(vehicleId).populate("drivers");
     if (!vehicle)
@@ -126,16 +222,6 @@ export const createBooking = async (req, res) => {
       return res
         .status(400)
         .json({ message: "This vehicle is not available." });
-
-    // Server-side price calculation
-    const totalPrice = calculatePrice(vehicle.pricePerHour, start, end);
-    if (!totalPrice) {
-      return res
-        .status(400)
-        .json({
-          message: "Invalid booking duration. Min 1 hour, max 30 days.",
-        });
-    }
 
     // Vehicle conflict check
     const vehicleConflict = await Booking.findOne({
@@ -158,9 +244,10 @@ export const createBooking = async (req, res) => {
 
     const driverPool = (vehicle.drivers || []).map((d) => d._id || d);
     let assignedDriver = null;
+    let driverRatePerHour = 0;
 
     if (driverId) {
-      // Customer explicitly chose a driver — validate availability
+      // Customer chose a specific driver
       const driverConflict = await Booking.findOne({
         driver: driverId,
         status: {
@@ -182,20 +269,41 @@ export const createBooking = async (req, res) => {
       }
       assignedDriver = driverId;
     } else if (driverPool.length > 0) {
-      // Auto-assign from vehicle's driver pool
       assignedDriver = await findAvailableDriver(driverPool, start, end);
       if (!assignedDriver) {
-        return res.status(400).json({
-          message:
-            "No drivers are available for the selected time. Please choose a different time or select a specific driver.",
-        });
+        return res
+          .status(400)
+          .json({
+            message:
+              "No drivers are available for the selected time. Please choose a different time or select a specific driver.",
+          });
       }
     }
-    // If driverPool is empty and no driverId → assignedDriver stays null
 
-    // ── KEY: status depends on whether a driver was assigned ─────────────────
-    // No driver → Confirmed immediately (skip driver acceptance step, go straight to payment)
-    // Driver assigned → PendingDriver (driver must accept before customer pays)
+    // Fetch driver rate if driver assigned
+    if (assignedDriver) {
+      const driverDoc =
+        await User.findById(assignedDriver).select("driverRatePerHour");
+      driverRatePerHour = driverDoc?.driverRatePerHour || 0;
+    }
+
+    // Server-side price calculation — pass mode explicitly
+    const pricing = calculatePrice(
+      vehicle.pricePerHour,
+      start,
+      end,
+      driverRatePerHour,
+      mode,
+    );
+    if (!pricing) {
+      return res
+        .status(400)
+        .json({
+          message: "Invalid booking duration. Min 1 hour, max 30 days.",
+        });
+    }
+
+    // Status: no driver → Confirmed (go straight to payment), driver → PendingDriver
     const initialStatus = assignedDriver
       ? BOOKING_STATUS.PENDING_DRIVER
       : BOOKING_STATUS.CONFIRMED;
@@ -206,7 +314,12 @@ export const createBooking = async (req, res) => {
       driver: assignedDriver,
       startDate: start,
       endDate: end,
-      totalPrice,
+      mode: pricing.mode,
+      vehicleCost: pricing.vehicleCost,
+      driverCost: pricing.driverCost,
+      totalPrice: pricing.total,
+      vehicleDailyRate: pricing.vehicleDailyRate, // stored so fine uses same discount
+      driverDailyRate: pricing.driverDailyRate,
       notes: notes || "",
       status: initialStatus,
     });
@@ -214,7 +327,7 @@ export const createBooking = async (req, res) => {
     const populated = await Booking.findById(booking._id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
     res.status(201).json(populated);
   } catch (error) {
@@ -273,10 +386,9 @@ export const driverResponse = async (req, res) => {
         booking: booking._id,
       });
 
-      // If already paid (edge case), auto-activate
       await tryAutoActivate(booking);
     } else {
-      // Reject — try to reassign to next available driver
+      // Reject — try reassign
       booking.rejectedDrivers.push(booking.driver);
 
       const driverPool = (booking.vehicle.drivers || []).map((d) => d._id || d);
@@ -299,7 +411,6 @@ export const driverResponse = async (req, res) => {
           booking: booking._id,
         });
       } else {
-        // No more drivers — cancel
         booking.status = BOOKING_STATUS.CANCELLED;
         await booking.save();
 
@@ -316,13 +427,15 @@ export const driverResponse = async (req, res) => {
     const updated = await Booking.findById(id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
-    res.status(200).json({
-      message:
-        action === "accept" ? "Booking accepted." : "Processed rejection.",
-      booking: updated,
-    });
+    res
+      .status(200)
+      .json({
+        message:
+          action === "accept" ? "Booking accepted." : "Processed rejection.",
+        booking: updated,
+      });
   } catch (error) {
     console.error("driverResponse:", error);
     res.status(500).json({ message: "Server error." });
@@ -330,7 +443,7 @@ export const driverResponse = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Submit payment → marks Paid → auto-activates
+// CUSTOMER: Submit payment → Paid → auto-activates
 // POST /api/bookings/:id/payment
 // ─────────────────────────────────────────────────────────────────────────────
 export const processPayment = async (req, res) => {
@@ -350,9 +463,11 @@ export const processPayment = async (req, res) => {
       return res.status(403).json({ message: "Not authorised." });
     }
     if (booking.status !== BOOKING_STATUS.CONFIRMED) {
-      return res.status(400).json({
-        message: "Payment can only be submitted for Confirmed bookings.",
-      });
+      return res
+        .status(400)
+        .json({
+          message: "Payment can only be submitted for Confirmed bookings.",
+        });
     }
     if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
       return res
@@ -380,18 +495,19 @@ export const processPayment = async (req, res) => {
       booking: booking._id,
     });
 
-    // Auto-activate (always true at this point since status is Confirmed + now Paid)
     await tryAutoActivate(booking);
 
     const updated = await Booking.findById(id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
-    res.status(200).json({
-      message: "Payment successful. Your booking is now active.",
-      booking: updated,
-    });
+    res
+      .status(200)
+      .json({
+        message: "Payment successful. Your booking is now active.",
+        booking: updated,
+      });
   } catch (error) {
     console.error("processPayment:", error);
     res.status(500).json({ message: "Server error." });
@@ -406,14 +522,12 @@ export const returnVehicle = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const booking = await Booking.findById(id).populate(
-      "vehicle",
-      "pricePerHour name plateNumber",
-    );
+    const booking = await Booking.findById(id)
+      .populate("vehicle", "pricePerHour name plateNumber")
+      .populate("driver", "driverRatePerHour");
 
     if (!booking)
       return res.status(404).json({ message: "Booking not found." });
-
     if (String(booking.customer) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorised." });
     }
@@ -424,18 +538,26 @@ export const returnVehicle = async (req, res) => {
     }
 
     const now = new Date();
-    const fine = calculateFine(
-      booking.vehicle?.pricePerHour || 0,
+    const vehicleRate = booking.vehicle?.pricePerHour || 0;
+    const driverRate = booking.driver?.driverRatePerHour || 0;
+    // Use stored daily rates so fine uses the same discount as the original booking
+    const fineBreakdown = calculateFine(
+      vehicleRate,
+      driverRate,
       booking.endDate,
       now,
+      booking.vehicleDailyRate,
+      booking.driverDailyRate,
     );
     const delayMins = Math.max(
       0,
       (now - new Date(booking.endDate)) / (1000 * 60),
     );
 
-    booking.fine = fine;
-    booking.totalPrice = booking.totalPrice + fine;
+    booking.vehicleFine = fineBreakdown.vehicleFine;
+    booking.driverFine = fineBreakdown.driverFine;
+    booking.fine = fineBreakdown.total;
+    booking.totalPrice = booking.totalPrice + fineBreakdown.total;
     booking.returnedAt = now;
     booking.postTrip.submittedAt = now;
     booking.status = BOOKING_STATUS.COMPLETED;
@@ -446,8 +568,8 @@ export const returnVehicle = async (req, res) => {
       type: NOTIF_TYPES.BOOKING_COMPLETED,
       title: "Trip completed",
       message:
-        fine > 0
-          ? `Trip completed. A late return fine of Rs ${fine.toLocaleString()} was applied. Final total: Rs ${booking.totalPrice.toLocaleString()}.`
+        fineBreakdown.total > 0
+          ? `Trip completed. A late return fine of Rs ${fineBreakdown.total.toLocaleString()} was applied. Final total: Rs ${booking.totalPrice.toLocaleString()}.`
           : `Trip completed. Thank you for returning on time! Total: Rs ${booking.totalPrice.toLocaleString()}.`,
       booking: booking._id,
     });
@@ -455,15 +577,21 @@ export const returnVehicle = async (req, res) => {
     const updated = await Booking.findById(id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
     res.status(200).json({
       message:
-        fine > 0
+        fineBreakdown.total > 0
           ? "Vehicle returned late. Fine applied."
           : "Vehicle returned on time.",
-      fine,
+      fine: fineBreakdown.total,
+      vehicleFine: fineBreakdown.vehicleFine,
+      driverFine: fineBreakdown.driverFine,
+      lateHours: fineBreakdown.lateHours,
       delayMins: Math.round(delayMins),
+      // Driver's total earning for their dashboard
+      driverEarning:
+        (booking.driverCost || 0) + (fineBreakdown.driverFine || 0),
       booking: updated,
     });
   } catch (error) {
@@ -473,7 +601,7 @@ export const returnVehicle = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Optional pre-trip photos (does NOT block anything)
+// CUSTOMER: Optional pre-trip photos
 // POST /api/bookings/:id/pre-trip
 // ─────────────────────────────────────────────────────────────────────────────
 export const submitPreTrip = async (req, res) => {
@@ -515,7 +643,6 @@ export const cancelBooking = async (req, res) => {
     const booking = await Booking.findById(id);
     if (!booking)
       return res.status(404).json({ message: "Booking not found." });
-
     if (String(booking.customer) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorised." });
     }
@@ -530,7 +657,6 @@ export const cancelBooking = async (req, res) => {
           message: "You can only cancel bookings that have not started.",
         });
     }
-
     booking.status = BOOKING_STATUS.CANCELLED;
     await booking.save();
     res.status(200).json({ message: "Booking cancelled." });
@@ -541,7 +667,7 @@ export const cancelBooking = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Cash payment for walk-in customers
+// ADMIN: Cash payment for walk-in
 // PATCH /api/bookings/:id/cash-payment
 // ─────────────────────────────────────────────────────────────────────────────
 export const adminCashPayment = async (req, res) => {
@@ -571,7 +697,7 @@ export const adminCashPayment = async (req, res) => {
     const updated = await Booking.findById(id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
     res
       .status(200)
@@ -624,7 +750,7 @@ export const getAllBookings = async (req, res) => {
     const bookings = await Booking.find()
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone")
+      .populate("driver", "name email phone driverRatePerHour")
       .sort({ createdAt: -1 });
     res.status(200).json(bookings);
   } catch (e) {
@@ -636,7 +762,7 @@ export const getMyBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ customer: req.user._id })
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone")
+      .populate("driver", "name email phone driverRatePerHour")
       .sort({ createdAt: -1 });
     res.status(200).json(bookings);
   } catch (e) {
@@ -661,7 +787,7 @@ export const getBookingById = async (req, res) => {
     const booking = await Booking.findById(req.params.id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
-      .populate("driver", "name email phone");
+      .populate("driver", "name email phone driverRatePerHour");
 
     if (!booking)
       return res.status(404).json({ message: "Booking not found." });

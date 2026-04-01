@@ -50,4 +50,20 @@ router.get("/:id/availability", async (req, res) => {
   }
 });
 
+//for driver fare
+router.patch("/:id/rate", auth, admin, async (req, res) => {
+  try {
+    const { driverRatePerHour } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { driverRatePerHour },
+      { new: true },
+    ).select("name driverRatePerHour");
+    if (!user) return res.status(404).json({ message: "Driver not found." });
+    res.json({ driver: user });
+  } catch (e) {
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
 export default router;
