@@ -6,17 +6,48 @@ import {
   getAllDrivers,
   verifyDriver,
 } from "../controllers/driverController.js";
+import Booking, { BOOKING_STATUS } from "../models/Booking.js";
 
 const router = express.Router();
 
-// GET /api/drivers — fetch all drivers (any authenticated user can browse)
-router.get("/", auth, getAllDrivers);
+// Public — guests can browse
+router.get("/", getAllDrivers);
 
-// PATCH /api/drivers/:id/verify — Admin verifies or unverifies a driver
-router.patch("/:id/verify", auth, admin, verifyDriver);
-
-// Routes below require DRIVER role
+// Driver's own profile and availability toggle
 router.get("/me", auth, driver, getDriverProfile);
 router.patch("/availability", auth, driver, updateAvailability);
+
+// Admin: verify / unverify
+router.patch("/:id/verify", auth, admin, verifyDriver);
+
+// ── Driver availability calendar ──────────────────────────────────────────────
+// GET /api/drivers/:id/availability
+// Returns booked time slots so the frontend can show a read-only calendar.
+// Public — no auth needed to view availability.
+router.get("/:id/availability", async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      driver: req.params.id,
+      status: {
+        $in: [
+          BOOKING_STATUS.PENDING_DRIVER,
+          BOOKING_STATUS.CONFIRMED,
+          BOOKING_STATUS.ACTIVE,
+        ],
+      },
+    }).select("startDate endDate status");
+
+    const slots = bookings.map((b) => ({
+      start: b.startDate,
+      end: b.endDate,
+      status: b.status,
+    }));
+
+    res.status(200).json(slots);
+  } catch (e) {
+    console.error("availability:", e);
+    res.status(500).json({ message: "Server error." });
+  }
+});
 
 export default router;

@@ -1,10 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-import "react-toastify/dist/ReactToastify.css";
-import BookingModal from "../components/BookingModal";
-
-// ── fetch vehicles ─────────────────────────────────────────
+// ── fetch vehicles ─────────────────────────────────────────────────────────
 function useVehicles() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,9 +13,9 @@ function useVehicles() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data) => {
-        setVehicles(Array.isArray(data) ? data : (data.vehicles ?? []));
-      })
+      .then((data) =>
+        setVehicles(Array.isArray(data) ? data : (data.vehicles ?? [])),
+      )
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -26,8 +23,11 @@ function useVehicles() {
   return { vehicles, loading, error };
 }
 
-// ── vehicle card ───────────────────────────────────────────
-function VehicleCard({ vehicle, onBook, user }) {
+// ── Vehicle card ───────────────────────────────────────────────────────────
+// Default price display: per day (discounted daily rate = pricePerHour * 24 * 0.85)
+// Hourly price shown as secondary info.
+function VehicleCard({ vehicle, user }) {
+  const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
 
   const typeColors = {
@@ -38,10 +38,14 @@ function VehicleCard({ vehicle, onBook, user }) {
   };
   const badge = typeColors[vehicle.type] || { bg: "#f1f5f9", color: "#64748b" };
 
+  // Prices
+  const pricePerDay = Math.round(vehicle.pricePerHour * 24 * 0.85); // 15% daily discount
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => navigate(`/car/${vehicle._id || vehicle.id}`)}
       style={{
         background: "#fff",
         borderRadius: 16,
@@ -55,9 +59,10 @@ function VehicleCard({ vehicle, onBook, user }) {
           ? "0 8px 28px rgba(15,23,42,0.10)"
           : "0 2px 8px rgba(15,23,42,0.04)",
         transform: hovered ? "translateY(-2px)" : "none",
+        cursor: "pointer",
       }}
     >
-      {/* Vehicle icon / image */}
+      {/* Image or placeholder */}
       <div
         style={{
           width: 52,
@@ -68,7 +73,6 @@ function VehicleCard({ vehicle, onBook, user }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 26,
           overflow: "hidden",
           border: vehicle.imageUrl ? "1px solid #e8edf3" : "none",
         }}
@@ -80,7 +84,7 @@ function VehicleCard({ vehicle, onBook, user }) {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          "🚗"
+          <span style={{ fontSize: 22, color: "#cbd5e1" }}>—</span>
         )}
       </div>
 
@@ -94,7 +98,7 @@ function VehicleCard({ vehicle, onBook, user }) {
             flexWrap: "wrap",
           }}
         >
-          <div
+          <span
             style={{
               fontWeight: 700,
               fontSize: 15,
@@ -105,7 +109,7 @@ function VehicleCard({ vehicle, onBook, user }) {
             }}
           >
             {vehicle.name}
-          </div>
+          </span>
           <span
             style={{
               fontSize: 11,
@@ -137,8 +141,22 @@ function VehicleCard({ vehicle, onBook, user }) {
               borderRadius: 20,
             }}
           >
-            👤 {vehicle.passengerSeat} seats
+            {vehicle.passengerSeat} seats
           </span>
+          {/* Daily price — prominent */}
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              background: "#eef2ff",
+              color: "#4338ca",
+              padding: "2px 8px",
+              borderRadius: 20,
+            }}
+          >
+            Rs {pricePerDay.toLocaleString()} / day
+          </span>
+          {/* Hourly — secondary */}
           <span
             style={{
               fontSize: 11,
@@ -149,7 +167,7 @@ function VehicleCard({ vehicle, onBook, user }) {
               borderRadius: 20,
             }}
           >
-            Rs. {vehicle.pricePerHour}/hr
+            Rs {vehicle.pricePerHour} / hr
           </span>
           {vehicle.isActive !== undefined && (
             <span
@@ -162,51 +180,45 @@ function VehicleCard({ vehicle, onBook, user }) {
                 color: vehicle.isActive ? "#1d4ed8" : "#94a3b8",
               }}
             >
-              {vehicle.isActive ? "● Available" : "○ Inactive"}
+              {vehicle.isActive ? "Available" : "Inactive"}
             </span>
           )}
         </div>
       </div>
 
-      {/* Book button */}
-      {user ? (
-        <button
-          onClick={() => onBook(vehicle)}
-          style={{
-            padding: "9px 18px",
-            borderRadius: 10,
-            border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-            transition: "opacity 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-        >
-          Book
-        </button>
-      ) : (
-        <span
-          style={{
-            fontSize: 12,
-            color: "#94a3b8",
-            flexShrink: 0,
-            fontStyle: "italic",
-          }}
-        >
-          Login to book
-        </span>
-      )}
+      {/* CTA */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/car/${vehicle._id || vehicle.id}`);
+        }}
+        style={{
+          padding: "9px 18px",
+          borderRadius: 10,
+          border: "none",
+          background: user
+            ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+            : "#f1f5f9",
+          color: user ? "#fff" : "#94a3b8",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+          transition: "opacity 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          if (user) e.currentTarget.style.opacity = "0.88";
+        }}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+      >
+        {user ? "View & Book" : "Login to book"}
+      </button>
     </div>
   );
 }
 
-// ── skeleton ───────────────────────────────────────────────
+// ── Skeleton ──────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
     <div
@@ -255,14 +267,10 @@ function SkeletonCard() {
   );
 }
 
-// ── main page ──────────────────────────────────────────────
+// ── Main page ──────────────────────────────────────────────────────────────
 export default function Explore() {
-  const [bookingVehicle, setBookingVehicle] = useState(null);
-
-  function handleBook(vehicle) {
-    setBookingVehicle(vehicle);
-  }
   const navigate = useNavigate();
+
   const user = (() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
@@ -300,10 +308,7 @@ export default function Explore() {
 
   return (
     <>
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
-        * { box-sizing: border-box; }
-      `}</style>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} } * { box-sizing: border-box; }`}</style>
 
       <div
         style={{
@@ -313,49 +318,29 @@ export default function Explore() {
           padding: "40px 20px 80px",
         }}
       >
-        {/* ── header ── */}
-        <div style={{ maxWidth: 700, margin: "0 auto 36px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-                borderRadius: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 26,
-                boxShadow: "0 8px 24px rgba(99,102,241,0.28)",
-                flexShrink: 0,
-              }}
-            >
-              🚗
-            </div>
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: 26,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                Find a Vehicle
-              </h1>
-              <p style={{ margin: 0, fontSize: 14, color: "#64748b" }}>
-                Browse vehicles available for booking across Nepal
-              </p>
-            </div>
-          </div>
+        {/* Header */}
+        <div style={{ maxWidth: 700, margin: "0 auto 32px" }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 26,
+              fontWeight: 800,
+              color: "#0f172a",
+              letterSpacing: "-0.5px",
+            }}
+          >
+            Find a Vehicle
+          </h1>
+          <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>
+            Browse vehicles available for rental · prices shown from daily rate
+          </p>
         </div>
 
-        {/* ── search + available filter ── */}
+        {/* Search + available filter */}
         <div
           style={{
             maxWidth: 700,
-            margin: "0 auto 16px",
+            margin: "0 auto 14px",
             display: "flex",
             gap: 10,
             flexWrap: "wrap",
@@ -364,7 +349,7 @@ export default function Explore() {
         >
           <input
             type="text"
-            placeholder="🔍  Search by name, model or company…"
+            placeholder="Search by name, model or company…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -387,17 +372,17 @@ export default function Explore() {
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
+              transition: "all 0.15s",
               border: `1.5px solid ${filterActive ? "#6366f1" : "#dde3ec"}`,
               background: filterActive ? "#eef2ff" : "#fff",
               color: filterActive ? "#4f46e5" : "#64748b",
-              transition: "all 0.15s",
             }}
           >
-            ● Available only
+            Available only
           </button>
         </div>
 
-        {/* ── type tabs ── */}
+        {/* Type tabs */}
         <div
           style={{
             maxWidth: 700,
@@ -417,10 +402,10 @@ export default function Explore() {
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: "pointer",
+                transition: "all 0.15s",
                 border: `1.5px solid ${filterType === t ? "#6366f1" : "#dde3ec"}`,
                 background: filterType === t ? "#6366f1" : "#fff",
                 color: filterType === t ? "#fff" : "#64748b",
-                transition: "all 0.15s",
               }}
             >
               {t}
@@ -428,7 +413,7 @@ export default function Explore() {
           ))}
         </div>
 
-        {/* ── vehicle list ── */}
+        {/* Vehicle list */}
         <div
           style={{
             maxWidth: 700,
@@ -451,11 +436,10 @@ export default function Explore() {
                 color: "#dc2626",
               }}
             >
-              <div style={{ fontSize: 32, marginBottom: 10 }}>⚠️</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+              <p style={{ fontWeight: 700, marginBottom: 4 }}>
                 Could not load vehicles
-              </div>
-              <div style={{ fontSize: 13, color: "#94a3b8" }}>{error}</div>
+              </p>
+              <p style={{ fontSize: 13, color: "#94a3b8" }}>{error}</p>
             </div>
           )}
 
@@ -470,15 +454,12 @@ export default function Explore() {
                 color: "#64748b",
               }}
             >
-              <div style={{ fontSize: 40, marginBottom: 14 }}>🚗</div>
-              <div
-                style={{ fontWeight: 700, color: "#0f172a", marginBottom: 6 }}
-              >
+              <p style={{ fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>
                 No vehicles found
-              </div>
-              <div style={{ fontSize: 13 }}>
+              </p>
+              <p style={{ fontSize: 13 }}>
                 Try adjusting your filters or search.
-              </div>
+              </p>
             </div>
           )}
 
@@ -488,13 +469,12 @@ export default function Explore() {
               <VehicleCard
                 key={vehicle._id || vehicle.id}
                 vehicle={vehicle}
-                onBook={handleBook}
                 user={user}
               />
             ))}
         </div>
 
-        {/* ── bottom nav ── */}
+        {/* Bottom nav */}
         <div
           style={{
             maxWidth: 700,
@@ -518,9 +498,8 @@ export default function Explore() {
               cursor: "pointer",
             }}
           >
-            ← Back to Home
+            Back to Home
           </button>
-
           {!user && (
             <button
               onClick={() => navigate("/login")}
@@ -538,7 +517,6 @@ export default function Explore() {
               Sign In to Book
             </button>
           )}
-
           {user && (
             <button
               onClick={() => navigate(dashRoute[user.role] || "/")}
@@ -553,17 +531,10 @@ export default function Explore() {
                 cursor: "pointer",
               }}
             >
-              My Dashboard →
+              My Dashboard
             </button>
           )}
         </div>
-        {bookingVehicle && (
-          <BookingModal
-            vehicle={bookingVehicle}
-            onClose={() => setBookingVehicle(null)}
-            onSuccess={(booking) => console.log("New booking:", booking)}
-          />
-        )}
       </div>
     </>
   );

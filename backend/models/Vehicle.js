@@ -1,67 +1,33 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const vehicleSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    name: { type: String, required: true },
     type: {
       type: String,
-      required: true, // e.g. Sedan, SUV, Van
-    },
-    model: {
-      type: String,
+      enum: ["Car", "Van", "Bus", "Truck"],
       required: true,
     },
-    company: {
-      type: String,
-      required: true,
-    },
+    model: { type: String, required: true },
+    company: { type: String, required: true },
+    plateNumber: { type: String, required: true, unique: true },
+    pricePerHour: { type: Number, required: true, min: 0 },
+    passengerSeat: { type: Number, default: 4 },
     fuelType: {
       type: String,
-      enum: ['Petrol', 'Diesel', 'Electric', 'Hybrid'],
-      required: true,
+      enum: ["Petrol", "Diesel", "Electric", "Hybrid"],
+      default: "Petrol",
     },
-    passengerSeat: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-    plateNumber: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    pricePerHour: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    imageUrl: {
-      type: String,
-      default: '',
-    },
-    description: {
-      type: String,
-      default: '',
-    },
-    // isActive = false means admin has deactivated (e.g. in workshop)
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    // Which driver is assigned to this vehicle
-    assignedDriver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
+    description: { type: String, default: "" },
+    imageUrl: { type: String, default: "" },
+    isActive: { type: Boolean, default: true },
+
+    // Drivers assigned to this vehicle (for auto-assignment)
+    // Add drivers here via admin panel. System picks first available.
+    drivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-const Vehicle = mongoose.model('Vehicle', vehicleSchema);
+const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 export default Vehicle;

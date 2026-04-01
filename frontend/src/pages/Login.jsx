@@ -151,9 +151,9 @@ export default function Login() {
             }}
           >
             {[
-              "🚗 Wide selection of vehicles",
-              "🧑‍✈️ Professional drivers",
-              "📍 Kathmandu & beyond",
+              "Wide selection of vehicles",
+              "Professional drivers",
+              "Kathmandu & beyond",
             ].map((f) => (
               <div
                 key={f}
@@ -215,7 +215,7 @@ export default function Login() {
                 color: "#dc2626",
               }}
             >
-              ⚠️ {error}
+              {error}
             </div>
           )}
 

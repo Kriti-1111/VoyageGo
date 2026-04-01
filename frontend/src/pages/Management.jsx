@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FaChartBar,
@@ -14,20 +13,18 @@ import {
   FaTachometerAlt,
   FaMoneyBillWave,
   FaSearch,
-  FaBell,
-  FaCheck,
   FaTimes,
-  FaPlay,
-  FaFlag,
   FaUserCheck,
   FaUserSlash,
+  FaMoneyBill,
+  FaUserPlus,
 } from "react-icons/fa";
 import { ENDPOINTS, BASE_URL } from "../services/api.js";
 
 const ROLE_CONFIG = {
-  OWNER: { label: "Owner", color: "#7c3aed", bg: "#f5f3ff", badge: "👑" },
-  ADMIN: { label: "Admin", color: "#6366f1", bg: "#eef2ff", badge: "⚙️" },
-  STAFF: { label: "Staff", color: "#0891b2", bg: "#ecfeff", badge: "🛡️" },
+  OWNER: { label: "Owner", color: "#7c3aed", bg: "#f5f3ff" },
+  ADMIN: { label: "Admin", color: "#6366f1", bg: "#eef2ff" },
+  STAFF: { label: "Staff", color: "#0891b2", bg: "#ecfeff" },
 };
 
 const ALL_TABS = [
@@ -91,14 +88,21 @@ const card = {
 };
 
 const STATUS_COLOR = {
-  Pending: "#f59e0b",
-  Accepted: "#3b82f6",
+  PendingDriver: "#f59e0b",
+  Confirmed: "#3b82f6",
   Active: "#22c55e",
   Completed: "#94a3b8",
   Cancelled: "#ef4444",
 };
+const STATUS_LABEL = {
+  PendingDriver: "Awaiting Driver",
+  Confirmed: "Confirmed",
+  Active: "Active",
+  Completed: "Completed",
+  Cancelled: "Cancelled",
+};
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function PanelHeader({ title, subtitle, action }) {
   return (
     <div
@@ -271,75 +275,17 @@ function StatCard({ title, value, subtitle, icon, accent }) {
   );
 }
 
-// ─── BOOKINGS TABLE ────────────────────────────────────────────────────────────
-function BookingsTable({ bookings, onStatusChange, showActions = false }) {
+// ── Bookings table ─────────────────────────────────────────────────────────────
+function BookingsTable({
+  bookings,
+  onCashPayment,
+  onCancel,
+  showActions = false,
+}) {
   const [loadingId, setLoadingId] = useState(null);
-
-  const handleAction = async (bookingId, newStatus) => {
-    setLoadingId(bookingId + newStatus);
-    await onStatusChange(bookingId, newStatus);
-    setLoadingId(null);
-  };
-
-  const getActions = (booking) => {
-    const s = booking.status;
-    if (s === "Pending")
-      return [
-        {
-          label: "Approve",
-          status: "Accepted",
-          icon: <FaCheck />,
-          color: "#22c55e",
-          bg: "#f0fdf4",
-        },
-        {
-          label: "Cancel",
-          status: "Cancelled",
-          icon: <FaTimes />,
-          color: "#ef4444",
-          bg: "#fff1f2",
-        },
-      ];
-    if (s === "Accepted")
-      return [
-        {
-          label: "Activate",
-          status: "Active",
-          icon: <FaPlay />,
-          color: "#3b82f6",
-          bg: "#eff6ff",
-        },
-        {
-          label: "Cancel",
-          status: "Cancelled",
-          icon: <FaTimes />,
-          color: "#ef4444",
-          bg: "#fff1f2",
-        },
-      ];
-    if (s === "Active")
-      return [
-        {
-          label: "Complete",
-          status: "Completed",
-          icon: <FaFlag />,
-          color: "#6366f1",
-          bg: "#eef2ff",
-        },
-        {
-          label: "Cancel",
-          status: "Cancelled",
-          icon: <FaTimes />,
-          color: "#ef4444",
-          bg: "#fff1f2",
-        },
-      ];
-    return [];
-  };
-
   const headers = showActions
-    ? ["Customer", "Vehicle", "Status", "Total", "Date", "Actions"]
-    : ["Customer", "Vehicle", "Status", "Total", "Date"];
+    ? ["Customer", "Vehicle", "Status", "Payment", "Total", "Date", "Actions"]
+    : ["Customer", "Vehicle", "Status", "Payment", "Total", "Date"];
 
   return (
     <div style={{ overflowX: "auto" }}>
@@ -367,7 +313,14 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
         </thead>
         <tbody>
           {bookings.map((b, i) => {
-            const actions = showActions ? getActions(b) : [];
+            const ps = b.paymentStatus || "Unpaid";
+            const cancelKey = b._id + "cancel";
+            const cashKey = b._id + "cash";
+            const canCancel =
+              showActions && !["Completed", "Cancelled"].includes(b.status);
+            const canCash =
+              showActions && b.status === "Confirmed" && ps === "Unpaid";
+
             return (
               <tr
                 key={b._id || i}
@@ -379,8 +332,8 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
                 <td
                   style={{
                     padding: "12px 16px",
-                    fontSize: "13px",
-                    fontWeight: "500",
+                    fontSize: 13,
+                    fontWeight: 500,
                     color: "#0f172a",
                   }}
                 >
@@ -389,7 +342,7 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
                 <td
                   style={{
                     padding: "12px 16px",
-                    fontSize: "13px",
+                    fontSize: 13,
                     color: "#334155",
                   }}
                 >
@@ -398,22 +351,36 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
                 <td style={{ padding: "12px 16px" }}>
                   <span
                     style={{
-                      fontSize: "12px",
-                      fontWeight: "700",
+                      fontSize: 12,
+                      fontWeight: 700,
                       color: STATUS_COLOR[b.status] || "#94a3b8",
                       background: (STATUS_COLOR[b.status] || "#94a3b8") + "18",
                       padding: "3px 9px",
-                      borderRadius: "20px",
+                      borderRadius: 20,
                     }}
                   >
-                    {b.status}
+                    {STATUS_LABEL[b.status] || b.status}
+                  </span>
+                </td>
+                <td style={{ padding: "12px 16px" }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: ps === "Paid" ? "#f0fdf4" : "#f1f5f9",
+                      color: ps === "Paid" ? "#15803d" : "#64748b",
+                    }}
+                  >
+                    {ps}
                   </span>
                 </td>
                 <td
                   style={{
                     padding: "12px 16px",
-                    fontSize: "13px",
-                    fontWeight: "600",
+                    fontSize: 13,
+                    fontWeight: 600,
                     color: "#0f172a",
                   }}
                 >
@@ -422,7 +389,7 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
                 <td
                   style={{
                     padding: "12px 16px",
-                    fontSize: "12px",
+                    fontSize: 12,
                     color: "#64748b",
                   }}
                 >
@@ -432,67 +399,115 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
                 </td>
                 {showActions && (
                   <td style={{ padding: "10px 16px" }}>
-                    {actions.length > 0 ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "6px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {actions.map((a) => {
-                          const key = b._id + a.status;
-                          const isLoading = loadingId === key;
-                          return (
-                            <button
-                              key={a.status}
-                              disabled={isLoading}
-                              onClick={() => handleAction(b._id, a.status)}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "5px",
-                                padding: "5px 12px",
-                                border: `1px solid ${a.color}40`,
-                                borderRadius: "7px",
-                                fontSize: "11px",
-                                fontWeight: "700",
-                                color: a.color,
-                                background: a.bg,
-                                cursor: isLoading ? "not-allowed" : "pointer",
-                                opacity: isLoading ? 0.6 : 1,
-                                transition: "all 0.15s",
-                                whiteSpace: "nowrap",
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isLoading) {
-                                  e.currentTarget.style.background = a.color;
-                                  e.currentTarget.style.color = "#fff";
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isLoading) {
-                                  e.currentTarget.style.background = a.bg;
-                                  e.currentTarget.style.color = a.color;
-                                }
-                              }}
-                            >
-                              {isLoading ? (
-                                "…"
-                              ) : (
-                                <>
-                                  {a.icon} {a.label}
-                                </>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: "12px", color: "#cbd5e1" }}>
-                        —
-                      </span>
-                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                      }}
+                    >
+                      {canCash && (
+                        <button
+                          disabled={loadingId === cashKey}
+                          onClick={async () => {
+                            setLoadingId(cashKey);
+                            await onCashPayment(b._id);
+                            setLoadingId(null);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "5px 12px",
+                            borderRadius: 7,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#15803d",
+                            background: "#f0fdf4",
+                            border: "1px solid #86efac",
+                            cursor:
+                              loadingId === cashKey ? "not-allowed" : "pointer",
+                            opacity: loadingId === cashKey ? 0.6 : 1,
+                            whiteSpace: "nowrap",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (loadingId !== cashKey) {
+                              e.currentTarget.style.background = "#15803d";
+                              e.currentTarget.style.color = "#fff";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (loadingId !== cashKey) {
+                              e.currentTarget.style.background = "#f0fdf4";
+                              e.currentTarget.style.color = "#15803d";
+                            }
+                          }}
+                        >
+                          {loadingId === cashKey ? (
+                            "…"
+                          ) : (
+                            <>
+                              <FaMoneyBill /> Cash Paid
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {canCancel && (
+                        <button
+                          disabled={loadingId === cancelKey}
+                          onClick={async () => {
+                            if (!confirm("Cancel this booking?")) return;
+                            setLoadingId(cancelKey);
+                            await onCancel(b._id);
+                            setLoadingId(null);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "5px 12px",
+                            borderRadius: 7,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#ef4444",
+                            background: "#fff1f2",
+                            border: "1px solid #fca5a540",
+                            cursor:
+                              loadingId === cancelKey
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity: loadingId === cancelKey ? 0.6 : 1,
+                            whiteSpace: "nowrap",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (loadingId !== cancelKey) {
+                              e.currentTarget.style.background = "#ef4444";
+                              e.currentTarget.style.color = "#fff";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (loadingId !== cancelKey) {
+                              e.currentTarget.style.background = "#fff1f2";
+                              e.currentTarget.style.color = "#ef4444";
+                            }
+                          }}
+                        >
+                          {loadingId === cancelKey ? (
+                            "…"
+                          ) : (
+                            <>
+                              <FaTimes /> Cancel
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {!canCash && !canCancel && (
+                        <span style={{ fontSize: 12, color: "#cbd5e1" }}>
+                          —
+                        </span>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -504,8 +519,8 @@ function BookingsTable({ bookings, onStatusChange, showActions = false }) {
   );
 }
 
-// ─── OVERVIEW PANEL ───────────────────────────────────────────────────────────
-function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
+// ── Overview ──────────────────────────────────────────────────────────────────
+function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
   const stats =
     role === "STAFF"
       ? [
@@ -533,18 +548,11 @@ function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
         ]
       : [
           {
-            title: "Total Revenue",
-            value: "Rs 0",
-            subtitle: "+Rs 0 this month",
-            icon: <FaMoneyBillWave />,
-            accent: "#6366f1",
-          },
-          {
             title: "Active Bookings",
             value: bookings.filter((b) =>
-              ["Active", "Accepted"].includes(b.status),
+              ["Active", "Confirmed"].includes(b.status),
             ).length,
-            subtitle: `${bookings.filter((b) => b.status === "Pending").length} pending`,
+            subtitle: `${bookings.filter((b) => b.status === "PendingDriver").length} awaiting driver`,
             icon: <FaClipboardList />,
             accent: "#f59e0b",
           },
@@ -562,7 +570,15 @@ function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
             icon: <FaCar />,
             accent: "#3b82f6",
           },
+          {
+            title: "Total Revenue",
+            value: "Rs 0",
+            subtitle: "connect payment gateway",
+            icon: <FaMoneyBillWave />,
+            accent: "#6366f1",
+          },
         ];
+
   return (
     <div>
       <div
@@ -584,12 +600,13 @@ function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
             <EmptyState
               icon={<FaClipboardList />}
               label="No bookings yet"
-              hint="Bookings will appear here once customers make reservations."
+              hint="Bookings appear here once customers reserve."
             />
           ) : (
             <BookingsTable
               bookings={bookings.slice(0, 5)}
-              onStatusChange={onStatusChange}
+              onCashPayment={onCashPayment}
+              onCancel={onCancel}
               showActions={true}
             />
           )}
@@ -622,7 +639,7 @@ function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
             <EmptyState
               icon={<FaExclamationTriangle />}
               label="No open disputes"
-              hint="Disputes raised by customers or drivers appear here."
+              hint="Disputes appear here."
             />
           </div>
         </div>
@@ -631,11 +648,308 @@ function OverviewPanel({ role, bookings, vehicles, onStatusChange }) {
   );
 }
 
-// ─── VEHICLES PANEL ───────────────────────────────────────────────────────────
+// ── Assign Drivers Modal ──────────────────────────────────────────────────────
+function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
+  const [allDrivers, setAllDrivers] = useState([]);
+  const [selectedIds, setSelectedIds] = useState(
+    (vehicle.drivers || []).map((d) => d._id || d),
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(`${ENDPOINTS.DRIVERS}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((r) =>
+        setAllDrivers(
+          Array.isArray(r.data) ? r.data.filter((d) => d.isDriverVerified) : [],
+        ),
+      )
+      .catch(() => setAllDrivers([]))
+      .finally(() => setLoading(false));
+    // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggle(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await axios.patch(
+        `${ENDPOINTS.VEHICLES}/${vehicle._id || vehicle.id}/drivers`,
+        { driverIds: selectedIds },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      onSaved();
+      onClose();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to assign drivers.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 480,
+          maxHeight: "80vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "20px 24px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
+              Assign Drivers
+            </h3>
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "#64748b" }}>
+              {vehicle.name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 20,
+              color: "#94a3b8",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Info */}
+        <div
+          style={{
+            padding: "12px 24px",
+            background: "#f8fafc",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+            Selected drivers will be auto-assigned to bookings for this vehicle.
+            Only verified drivers are shown.
+          </p>
+        </div>
+
+        {/* Driver list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 24px" }}>
+          {loading ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#94a3b8",
+                fontSize: 13,
+                padding: 24,
+              }}
+            >
+              Loading drivers…
+            </p>
+          ) : allDrivers.length === 0 ? (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: 13,
+                padding: 24,
+              }}
+            >
+              No verified drivers found. Verify drivers in the Drivers tab
+              first.
+            </p>
+          ) : (
+            allDrivers.map((d) => {
+              const id = d._id || d.id;
+              const selected = selectedIds.includes(id);
+              return (
+                <div
+                  key={id}
+                  onClick={() => toggle(id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    marginBottom: 6,
+                    border: `1.5px solid ${selected ? "#6366f1" : "#e2e8f0"}`,
+                    background: selected ? "#eef2ff" : "#fff",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      background: selected ? "#6366f1" : "#e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: selected ? "#fff" : "#94a3b8",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {(d.name || "D")[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: selected ? "#4f46e5" : "#0f172a",
+                      }}
+                    >
+                      {d.name}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
+                      {d.isAvailable ? "Online" : "Offline"}
+                      {d.languages?.length > 0 &&
+                        ` · ${d.languages.join(", ")}`}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: "50%",
+                      border: `2px solid ${selected ? "#6366f1" : "#cbd5e1"}`,
+                      background: selected ? "#6366f1" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {selected && (
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "16px 24px",
+            borderTop: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#64748b" }}>
+            {selectedIds.length} driver{selectedIds.length !== 1 ? "s" : ""}{" "}
+            selected
+          </span>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: "9px 20px",
+                border: "1px solid #e2e8f0",
+                borderRadius: 9,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#64748b",
+                background: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              style={{
+                padding: "9px 20px",
+                border: "none",
+                borderRadius: 9,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#fff",
+                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                cursor: saving ? "not-allowed" : "pointer",
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Vehicles panel ─────────────────────────────────────────────────────────────
 function VehiclesPanel({ isAdmin }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [assignTarget, setAssignTarget] = useState(null); // vehicle being assigned drivers
   const [form, setForm] = useState({
     name: "",
     type: "",
@@ -647,15 +961,16 @@ function VehiclesPanel({ isAdmin }) {
     plateNumber: "",
     description: "",
   });
-  const [submitting, setSubmitting] = useState(false);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchV();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchV = async () => {
     try {
       setLoading(true);
+      // Use admin endpoint to get all vehicles including inactive
       const { data } = await axios.get(ENDPOINTS.VEHICLES, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -666,6 +981,7 @@ function VehiclesPanel({ isAdmin }) {
       setLoading(false);
     }
   };
+
   const submit = async () => {
     setSubmitting(true);
     try {
@@ -677,6 +993,7 @@ function VehiclesPanel({ isAdmin }) {
         name: "",
         type: "",
         model: "",
+        company: "",
         pricePerHour: "",
         passengerSeat: "",
         fuelType: "",
@@ -690,6 +1007,7 @@ function VehiclesPanel({ isAdmin }) {
       setSubmitting(false);
     }
   };
+
   const deleteV = async (id) => {
     if (!confirm("Delete this vehicle?")) return;
     try {
@@ -704,6 +1022,7 @@ function VehiclesPanel({ isAdmin }) {
 
   return (
     <div>
+      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -745,6 +1064,8 @@ function VehiclesPanel({ isAdmin }) {
           </button>
         )}
       </div>
+
+      {/* Add vehicle form */}
       {showForm && isAdmin && (
         <div style={{ ...card, padding: "24px", marginBottom: "24px" }}>
           <h3
@@ -765,16 +1086,12 @@ function VehiclesPanel({ isAdmin }) {
             }}
           >
             {[
-              { key: "name", label: "Vehicle Name", ph: "e.g. Toyota Hiace" },
-              { key: "model", label: "Model / Year", ph: "e.g. 2020" },
-              { key: "company", label: "Company", ph: "e.g. Toyota" },
-              {
-                key: "plateNumber",
-                label: "Plate Number",
-                ph: "BA 1 KHA 1234",
-              },
-              { key: "pricePerHour", label: "Price/Hour (Rs)", ph: "e.g. 500" },
-              { key: "passengerSeat", label: "Seats", ph: "e.g. 8" },
+              { key: "name", label: "Name", ph: "Toyota Hiace" },
+              { key: "model", label: "Model", ph: "2022" },
+              { key: "company", label: "Company", ph: "Toyota" },
+              { key: "plateNumber", label: "Plate", ph: "BA 1 KHA 1234" },
+              { key: "pricePerHour", label: "Price/Hr (Rs)", ph: "800" },
+              { key: "passengerSeat", label: "Seats", ph: "8" },
             ].map(({ key, label, ph }) => (
               <div key={key}>
                 <label
@@ -785,7 +1102,6 @@ function VehiclesPanel({ isAdmin }) {
                     display: "block",
                     marginBottom: "4px",
                     textTransform: "uppercase",
-                    letterSpacing: "0.5px",
                   }}
                 >
                   {label}
@@ -802,7 +1118,6 @@ function VehiclesPanel({ isAdmin }) {
                     border: "1.5px solid #e2e8f0",
                     borderRadius: "8px",
                     fontSize: "13px",
-                    color: "#0f172a",
                     outline: "none",
                     background: "#f8fafc",
                     boxSizing: "border-box",
@@ -812,86 +1127,59 @@ function VehiclesPanel({ isAdmin }) {
                 />
               </div>
             ))}
-            <div>
-              <label
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "700",
-                  color: "#64748b",
-                  display: "block",
-                  marginBottom: "4px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                Type
-              </label>
-              <select
-                value={form.type}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, type: e.target.value }))
-                }
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  outline: "none",
-                  background: "#f8fafc",
-                  boxSizing: "border-box",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="" disabled>
-                  Select type…
-                </option>
-                <option value="Car">Car</option>
-                <option value="Van">Van</option>
-                <option value="Bus">Bus</option>
-                <option value="Truck">Truck</option>
-              </select>
-            </div>
-            <div>
-              <label
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "700",
-                  color: "#64748b",
-                  display: "block",
-                  marginBottom: "4px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
-                Fuel Type
-              </label>
-              <select
-                value={form.fuelType}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, fuelType: e.target.value }))
-                }
-                style={{
-                  width: "100%",
-                  padding: "9px 12px",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                  outline: "none",
-                  background: "#f8fafc",
-                  boxSizing: "border-box",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="" disabled>
-                  Select fuel type…
-                </option>
-                <option value="Petrol">Petrol</option>
-                <option value="Diesel">Diesel</option>
-                <option value="Electric">Electric</option>
-                <option value="Hybrid">Hybrid</option>
-              </select>
-            </div>
+            {[
+              {
+                key: "type",
+                label: "Type",
+                opts: ["Car", "Van", "Bus", "Truck"],
+              },
+              {
+                key: "fuelType",
+                label: "Fuel",
+                opts: ["Petrol", "Diesel", "Electric", "Hybrid"],
+              },
+            ].map(({ key, label, opts }) => (
+              <div key={key}>
+                <label
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    color: "#64748b",
+                    display: "block",
+                    marginBottom: "4px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {label}
+                </label>
+                <select
+                  value={form[key]}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [key]: e.target.value }))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    outline: "none",
+                    background: "#f8fafc",
+                    boxSizing: "border-box",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {opts.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
           <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
             <button
@@ -929,6 +1217,8 @@ function VehiclesPanel({ isAdmin }) {
           </div>
         </div>
       )}
+
+      {/* Vehicle grid */}
       {loading ? (
         <Spinner />
       ) : vehicles.length === 0 ? (
@@ -943,118 +1233,338 @@ function VehiclesPanel({ isAdmin }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
+            gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))",
             gap: "16px",
           }}
         >
-          {vehicles.map((v) => (
-            <div key={v._id || v.id} style={{ ...card, padding: "16px" }}>
-              <div
-                style={{
-                  height: "130px",
-                  background: "linear-gradient(135deg,#e0e7ff,#f5f3ff)",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  marginBottom: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "36px",
-                }}
-              >
-                {v.imageUrl ? (
-                  <img
-                    src={`${BASE_URL}/${v.imageUrl}`}
-                    alt={v.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  "🚗"
-                )}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                }}
-              >
-                <div>
-                  <h3
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      color: "#0f172a",
-                      margin: "0 0 2px",
-                    }}
-                  >
-                    {v.name}
-                  </h3>
-                  <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
-                    {v.type} · Rs {v.pricePerHour}/hr
-                  </p>
-                </div>
-                <span
+          {vehicles.map((v) => {
+            const assignedDrivers = v.drivers || [];
+            const driverCount = assignedDrivers.length;
+
+            return (
+              <div key={v._id || v.id} style={{ ...card, padding: "16px" }}>
+                {/* Image */}
+                <div
                   style={{
-                    background: v.isActive ? "#f0fdf4" : "#fff1f2",
-                    color: v.isActive ? "#15803d" : "#be123c",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    padding: "3px 8px",
-                    borderRadius: "20px",
+                    height: "130px",
+                    background: "linear-gradient(135deg,#e0e7ff,#f5f3ff)",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    marginBottom: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {v.isActive ? "Active" : "Inactive"}
-                </span>
-              </div>
-              {isAdmin && (
-                <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-                  <button
-                    style={{
-                      flex: 1,
-                      padding: "7px",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "7px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#6366f1",
-                      background: "#fff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteV(v._id || v.id)}
-                    style={{
-                      flex: 1,
-                      padding: "7px",
-                      border: "1px solid #fca5a5",
-                      borderRadius: "7px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#dc2626",
-                      background: "#fff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Delete
-                  </button>
+                  {v.imageUrl ? (
+                    <img
+                      src={`${BASE_URL}/${v.imageUrl}`}
+                      alt={v.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <svg
+                      width="36"
+                      height="36"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#c7d2fe"
+                      strokeWidth="1.5"
+                    >
+                      <rect x="1" y="3" width="15" height="13" rx="2" />
+                      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                      <circle cx="5.5" cy="18.5" r="2.5" />
+                      <circle cx="18.5" cy="18.5" r="2.5" />
+                    </svg>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Name + status */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 8,
+                  }}
+                >
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: "#0f172a",
+                        margin: "0 0 2px",
+                      }}
+                    >
+                      {v.name}
+                    </h3>
+                    <p
+                      style={{ fontSize: "12px", color: "#64748b", margin: 0 }}
+                    >
+                      {v.type} · Rs {v.pricePerHour}/hr
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      background: v.isActive ? "#f0fdf4" : "#fff1f2",
+                      color: v.isActive ? "#15803d" : "#be123c",
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      padding: "3px 8px",
+                      borderRadius: "20px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {v.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                {/* Assigned drivers section */}
+                <div style={{ marginBottom: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Assigned Drivers
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: driverCount > 0 ? "#6366f1" : "#f59e0b",
+                      }}
+                    >
+                      {driverCount > 0
+                        ? `${driverCount} driver${driverCount > 1 ? "s" : ""}`
+                        : "None"}
+                    </span>
+                  </div>
+
+                  {driverCount === 0 ? (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 12,
+                        color: "#f59e0b",
+                        background: "#fffbeb",
+                        border: "1px solid #fde68a",
+                        borderRadius: 7,
+                        padding: "6px 10px",
+                      }}
+                    >
+                      No drivers — bookings skip driver step
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
+                      {assignedDrivers.map((d) => {
+                        const dId = d._id || d.id || d;
+                        const dName = d.name || "Driver";
+                        return (
+                          <div
+                            key={dId}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              background: "#f8fafc",
+                              borderRadius: 7,
+                              padding: "6px 10px",
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 7,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 22,
+                                  height: 22,
+                                  borderRadius: "50%",
+                                  background:
+                                    "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#fff",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {dName[0].toUpperCase()}
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: "#0f172a",
+                                }}
+                              >
+                                {dName}
+                              </span>
+                              {d.isAvailable !== undefined && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: d.isAvailable
+                                      ? "#15803d"
+                                      : "#94a3b8",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  · {d.isAvailable ? "Online" : "Offline"}
+                                </span>
+                              )}
+                            </div>
+                            {isAdmin && (
+                              <button
+                                onClick={async () => {
+                                  const newIds = assignedDrivers
+                                    .map((x) => x._id || x.id || x)
+                                    .filter((id) => String(id) !== String(dId));
+                                  try {
+                                    await axios.patch(
+                                      `${ENDPOINTS.VEHICLES}/${v._id || v.id}/drivers`,
+                                      { driverIds: newIds },
+                                      {
+                                        headers: {
+                                          Authorization: `Bearer ${token}`,
+                                        },
+                                      },
+                                    );
+                                    fetchV();
+                                  } catch (e) {
+                                    alert(
+                                      e.response?.data?.message ||
+                                        "Failed to remove driver.",
+                                    );
+                                  }
+                                }}
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: "#dc2626",
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  padding: "2px 6px",
+                                  borderRadius: 5,
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.background = "#fff1f2")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.background = "none")
+                                }
+                                title="Remove driver from this vehicle"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {isAdmin && (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => setAssignTarget(v)}
+                      style={{
+                        flex: 1,
+                        padding: "7px",
+                        border: "1px solid #c7d2fe",
+                        borderRadius: "7px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#6366f1",
+                        background: "#eef2ff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#6366f1";
+                        e.currentTarget.style.color = "#fff";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#eef2ff";
+                        e.currentTarget.style.color = "#6366f1";
+                      }}
+                    >
+                      + Assign Drivers
+                    </button>
+                    <button
+                      onClick={() => deleteV(v._id || v.id)}
+                      style={{
+                        flex: 1,
+                        padding: "7px",
+                        border: "1px solid #fca5a5",
+                        borderRadius: "7px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#dc2626",
+                        background: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {/* Assign drivers modal */}
+      {assignTarget && (
+        <AssignDriversModal
+          vehicle={assignTarget}
+          token={token}
+          onClose={() => setAssignTarget(null)}
+          onSaved={fetchV}
+        />
       )}
     </div>
   );
 }
 
-// ─── DRIVERS PANEL ────────────────────────────────────────────────────────────
+// ── Drivers panel ─────────────────────────────────────────────────────────────
 function DriversPanel({ isAdmin }) {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1064,7 +1574,8 @@ function DriversPanel({ isAdmin }) {
 
   useEffect(() => {
     fetchDrivers();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchDrivers = async () => {
     try {
       setLoading(true);
@@ -1078,6 +1589,7 @@ function DriversPanel({ isAdmin }) {
       setLoading(false);
     }
   };
+
   const toggleVerify = async (driverId, currentStatus) => {
     setVerifyingId(driverId);
     try {
@@ -1094,16 +1606,14 @@ function DriversPanel({ isAdmin }) {
         ),
       );
     } catch (e) {
-      alert(
-        e.response?.data?.message || "Failed to update driver verification.",
-      );
+      alert(e.response?.data?.message || "Failed.");
     } finally {
       setVerifyingId(null);
     }
   };
 
-  const verifiedCount = drivers.filter((d) => d.isDriverVerified).length;
-  const unverifiedCount = drivers.filter((d) => !d.isDriverVerified).length;
+  const verified = drivers.filter((d) => d.isDriverVerified).length;
+  const unverified = drivers.filter((d) => !d.isDriverVerified).length;
   const filtered =
     filter === "verified"
       ? drivers.filter((d) => d.isDriverVerified)
@@ -1117,6 +1627,7 @@ function DriversPanel({ isAdmin }) {
         <Spinner />
       </div>
     );
+
   return (
     <div>
       <div
@@ -1149,10 +1660,10 @@ function DriversPanel({ isAdmin }) {
             { key: "all", label: `All (${drivers.length})` },
             {
               key: "unverified",
-              label: `Pending (${unverifiedCount})`,
-              alert: unverifiedCount > 0,
+              label: `Pending (${unverified})`,
+              alert: unverified > 0,
             },
-            { key: "verified", label: `Verified (${verifiedCount})` },
+            { key: "verified", label: `Verified (${verified})` },
           ].map((f) => {
             const active = filter === f.key;
             return (
@@ -1168,7 +1679,6 @@ function DriversPanel({ isAdmin }) {
                   cursor: "pointer",
                   background: active ? "#6366f1" : f.alert ? "#fffbeb" : "#fff",
                   color: active ? "#fff" : f.alert ? "#b45309" : "#64748b",
-                  transition: "all 0.15s",
                 }}
               >
                 {f.label}
@@ -1177,6 +1687,7 @@ function DriversPanel({ isAdmin }) {
           })}
         </div>
       </div>
+
       {filtered.length === 0 ? (
         <div style={card}>
           <EmptyState
@@ -1219,9 +1730,9 @@ function DriversPanel({ isAdmin }) {
             </thead>
             <tbody>
               {filtered.map((d, i) => {
-                const isVerified = d.isDriverVerified === true;
+                const isV = d.isDriverVerified === true;
                 const dId = d._id || d.id;
-                const isLoading = verifyingId === dId;
+                const isLoad = verifyingId === dId;
                 return (
                   <tr
                     key={dId || i}
@@ -1317,62 +1828,63 @@ function DriversPanel({ isAdmin }) {
                           fontWeight: "700",
                           padding: "3px 9px",
                           borderRadius: "20px",
-                          background: isVerified ? "#f0fdf4" : "#fffbeb",
-                          color: isVerified ? "#15803d" : "#b45309",
+                          background: isV ? "#f0fdf4" : "#fffbeb",
+                          color: isV ? "#15803d" : "#b45309",
                         }}
                       >
-                        {isVerified ? "✓ Verified" : "⚠ Pending"}
+                        {isV ? "Verified" : "Pending"}
                       </span>
                     </td>
                     {isAdmin && (
                       <td style={{ padding: "10px 16px" }}>
                         <button
-                          disabled={isLoading}
-                          onClick={() => toggleVerify(dId, isVerified)}
+                          disabled={isLoad}
+                          onClick={() => toggleVerify(dId, isV)}
                           style={{
                             display: "flex",
                             alignItems: "center",
                             gap: "6px",
                             padding: "6px 14px",
-                            border: `1px solid ${isVerified ? "#fca5a5" : "#86efac"}`,
+                            border: `1px solid ${isV ? "#fca5a5" : "#86efac"}`,
                             borderRadius: "8px",
                             fontSize: "12px",
                             fontWeight: "700",
-                            color: isVerified ? "#dc2626" : "#15803d",
-                            background: isVerified ? "#fff1f2" : "#f0fdf4",
-                            cursor: isLoading ? "not-allowed" : "pointer",
-                            opacity: isLoading ? 0.6 : 1,
-                            transition: "all 0.15s",
+                            color: isV ? "#dc2626" : "#15803d",
+                            background: isV ? "#fff1f2" : "#f0fdf4",
+                            cursor: isLoad ? "not-allowed" : "pointer",
+                            opacity: isLoad ? 0.6 : 1,
                             whiteSpace: "nowrap",
                           }}
                           onMouseEnter={(e) => {
-                            if (!isLoading) {
-                              e.currentTarget.style.background = isVerified
+                            if (!isLoad) {
+                              e.currentTarget.style.background = isV
                                 ? "#dc2626"
                                 : "#15803d";
                               e.currentTarget.style.color = "#fff";
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (!isLoading) {
-                              e.currentTarget.style.background = isVerified
+                            if (!isLoad) {
+                              e.currentTarget.style.background = isV
                                 ? "#fff1f2"
                                 : "#f0fdf4";
-                              e.currentTarget.style.color = isVerified
+                              e.currentTarget.style.color = isV
                                 ? "#dc2626"
                                 : "#15803d";
                             }
                           }}
                         >
-                          {isLoading ? (
+                          {isLoad ? (
                             "…"
-                          ) : isVerified ? (
+                          ) : isV ? (
                             <>
-                              <FaUserSlash /> Revoke
+                              <FaUserSlash />
+                              Revoke
                             </>
                           ) : (
                             <>
-                              <FaUserCheck /> Verify
+                              <FaUserCheck />
+                              Verify
                             </>
                           )}
                         </button>
@@ -1389,27 +1901,22 @@ function DriversPanel({ isAdmin }) {
   );
 }
 
-// ─── CUSTOMERS PANEL ──────────────────────────────────────────────────────────
+// ── Customers panel ───────────────────────────────────────────────────────────
 function CustomersPanel() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
-
   useEffect(() => {
     axios
       .get(ENDPOINTS.CUSTOMERS, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((r) => setCustomers(Array.isArray(r.data) ? r.data : []))
-      .catch((e) => {
-        console.error("Failed to fetch customers:", e);
-        setError(e.response?.data?.message || "Failed to load customers.");
-      })
+      .catch((e) => setError(e.response?.data?.message || "Failed."))
       .finally(() => setLoading(false));
-  }, []);
-
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -1417,7 +1924,6 @@ function CustomersPanel() {
       (c.email || "").toLowerCase().includes(q)
     );
   });
-
   if (loading)
     return (
       <div style={card}>
@@ -1434,7 +1940,6 @@ function CustomersPanel() {
         />
       </div>
     );
-
   return (
     <div>
       <div
@@ -1494,11 +1999,7 @@ function CustomersPanel() {
           <EmptyState
             icon={<FaUsers />}
             label="No customers found"
-            hint={
-              search
-                ? "Try a different search term."
-                : "Customers who register will appear here."
-            }
+            hint={search ? "Try a different term." : "No customers yet."}
           />
         </div>
       ) : (
@@ -1506,7 +2007,7 @@ function CustomersPanel() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["Name", "Email", "Phone", "Address", "Joined"].map((h) => (
+                {["Name", "Email", "Phone", "Joined"].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -1554,7 +2055,6 @@ function CustomersPanel() {
                           color: "#fff",
                           fontSize: "13px",
                           fontWeight: "700",
-                          flexShrink: 0,
                         }}
                       >
                         {(c.name || "C")[0].toUpperCase()}
@@ -1591,25 +2091,6 @@ function CustomersPanel() {
                   <td
                     style={{
                       padding: "12px 16px",
-                      fontSize: "13px",
-                      color: "#64748b",
-                      maxWidth: "200px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "block",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {c.permanentAddress || c.temporaryAddress || "—"}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 16px",
                       fontSize: "12px",
                       color: "#64748b",
                     }}
@@ -1628,76 +2109,6 @@ function CustomersPanel() {
   );
 }
 
-function AnalyticsPanel() {
-  return (
-    <div>
-      <h2
-        style={{
-          fontSize: "17px",
-          fontWeight: "700",
-          color: "#0f172a",
-          margin: "0 0 20px",
-        }}
-      >
-        Analytics & Reports
-      </h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-          gap: "16px",
-        }}
-      >
-        {[
-          {
-            title: "Revenue This Month",
-            value: "Rs 0",
-            icon: "💰",
-            color: "#6366f1",
-          },
-          {
-            title: "Bookings This Week",
-            value: "0",
-            icon: "📅",
-            color: "#f59e0b",
-          },
-          { title: "New Customers", value: "0", icon: "👥", color: "#10b981" },
-          {
-            title: "Fleet Utilization",
-            value: "0%",
-            icon: "🚗",
-            color: "#3b82f6",
-          },
-        ].map((s) => (
-          <div key={s.title} style={{ ...card, padding: "22px" }}>
-            <span style={{ fontSize: "28px" }}>{s.icon}</span>
-            <p
-              style={{
-                fontSize: "26px",
-                fontWeight: "800",
-                color: s.color,
-                margin: "12px 0 4px",
-              }}
-            >
-              {s.value}
-            </p>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#64748b",
-                margin: 0,
-                fontWeight: "500",
-              }}
-            >
-              {s.title}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function GenericPanel({ title, subtitle, icon, hint }) {
   return (
     <div style={card}>
@@ -1711,7 +2122,7 @@ function GenericPanel({ title, subtitle, icon, hint }) {
   );
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Management() {
   const user = (() => {
     try {
@@ -1730,32 +2141,48 @@ export default function Management() {
   const token = localStorage.getItem("token");
 
   useEffect(() => {
-    if (role !== "STAFF") {
-      axios
-        .get(ENDPOINTS.BOOKINGS, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((r) => setBookings(Array.isArray(r.data) ? r.data : []))
-        .catch(() => {});
-      axios
-        .get(ENDPOINTS.VEHICLES, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((r) => setVehicles(Array.isArray(r.data) ? r.data : []))
-        .catch(() => {});
-    }
-  }, []);
+    if (role === "STAFF") return;
+    fetchBookings();
+    axios
+      .get(ENDPOINTS.VEHICLES, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((r) => setVehicles(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleStatusChange = async (bookingId, newStatus) => {
+  const fetchBookings = () => {
+    axios
+      .get(ENDPOINTS.BOOKINGS, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((r) => setBookings(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+  };
+
+  const handleCashPayment = async (id) => {
     try {
-      const { data } = await axios.patch(
-        `${ENDPOINTS.BOOKINGS}/${bookingId}/status`,
-        { status: newStatus },
+      await axios.patch(
+        `${ENDPOINTS.BOOKINGS}/${id}/cash-payment`,
+        {},
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setBookings((prev) => prev.map((b) => (b._id === bookingId ? data : b)));
+      fetchBookings();
     } catch (e) {
-      alert(e.response?.data?.message || "Failed to update booking status.");
+      alert(e.response?.data?.message || "Failed.");
+    }
+  };
+
+  const handleCancel = async (id) => {
+    try {
+      await axios.patch(
+        `${ENDPOINTS.BOOKINGS}/${id}/admin-cancel`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      fetchBookings();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed.");
     }
   };
 
@@ -1767,11 +2194,19 @@ export default function Management() {
             role={role}
             bookings={bookings}
             vehicles={vehicles}
-            onStatusChange={handleStatusChange}
+            onCashPayment={handleCashPayment}
+            onCancel={handleCancel}
           />
         );
       case "analytics":
-        return <AnalyticsPanel />;
+        return (
+          <GenericPanel
+            title="Analytics & Reports"
+            subtitle="Revenue and usage stats"
+            icon={<FaChartBar />}
+            hint="Connect your payment gateway to see real analytics."
+          />
+        );
       case "bookings":
         return (
           <div style={card}>
@@ -1780,16 +2215,7 @@ export default function Management() {
               subtitle="Full booking management"
               action={
                 <button
-                  onClick={() =>
-                    axios
-                      .get(ENDPOINTS.BOOKINGS, {
-                        headers: { Authorization: `Bearer ${token}` },
-                      })
-                      .then((r) =>
-                        setBookings(Array.isArray(r.data) ? r.data : []),
-                      )
-                      .catch(() => {})
-                  }
+                  onClick={fetchBookings}
                   style={{
                     background: "#6366f1",
                     color: "#fff",
@@ -1809,12 +2235,13 @@ export default function Management() {
               <EmptyState
                 icon={<FaClipboardList />}
                 label="No bookings yet"
-                hint="Bookings appear here once customers reserve."
+                hint="Bookings appear once customers reserve."
               />
             ) : (
               <BookingsTable
                 bookings={bookings}
-                onStatusChange={handleStatusChange}
+                onCashPayment={handleCashPayment}
+                onCancel={handleCancel}
                 showActions={true}
               />
             )}
@@ -1830,9 +2257,9 @@ export default function Management() {
         return (
           <GenericPanel
             title="Document Verification"
-            subtitle="Customer and driver document reviews"
+            subtitle="Customer and driver verifications"
             icon={<FaFileAlt />}
-            hint="Submitted documents will appear here for review."
+            hint="Submitted documents appear here."
           />
         );
       case "disputes":
@@ -1841,7 +2268,7 @@ export default function Management() {
             title="Dispute Management"
             subtitle="Damage reports and complaints"
             icon={<FaExclamationTriangle />}
-            hint="Disputes raised by customers or drivers appear here."
+            hint="Disputes appear here."
           />
         );
       case "staff":
@@ -1850,7 +2277,7 @@ export default function Management() {
             title="Staff Management"
             subtitle="Manage admin and staff accounts"
             icon={<FaShieldAlt />}
-            hint="Staff accounts will appear here."
+            hint="Staff accounts appear here."
           />
         );
       default:
@@ -1859,7 +2286,6 @@ export default function Management() {
   };
 
   return (
-    // Takes remaining height below the shared Navbar (which is in Layout)
     <div
       style={{
         display: "flex",
@@ -1868,7 +2294,6 @@ export default function Management() {
         fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
       }}
     >
-      {/* ── Sidebar — NO Home or Sign Out buttons anymore (Navbar handles them) ── */}
       <aside
         style={{
           width: "240px",
@@ -1880,7 +2305,6 @@ export default function Management() {
           flexShrink: 0,
         }}
       >
-        {/* Logo area */}
         <div
           style={{
             padding: "20px 24px 16px",
@@ -1898,7 +2322,23 @@ export default function Management() {
               padding: "8px 12px",
             }}
           >
-            <span style={{ fontSize: "16px" }}>{roleCfg.badge}</span>
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: `linear-gradient(135deg,${roleCfg.color},${roleCfg.color}99)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {(user?.name || user?.email || "U")[0].toUpperCase()}
+            </div>
             <div>
               <p
                 style={{
@@ -1925,7 +2365,6 @@ export default function Management() {
             </div>
           </div>
         </div>
-
         <div style={{ padding: "14px 24px 8px", flexShrink: 0 }}>
           <span
             style={{
@@ -1939,8 +2378,6 @@ export default function Management() {
             Main Menu
           </span>
         </div>
-
-        {/* Nav tabs */}
         <nav style={{ padding: "0 12px", flex: 1, overflowY: "auto" }}>
           {visibleTabs.map((item) => {
             const active = activeTab === item.id;
@@ -1997,10 +2434,8 @@ export default function Management() {
             );
           })}
         </nav>
-        {/* No Home / Sign Out here — the shared Navbar handles them */}
       </aside>
 
-      {/* ── Main content ── */}
       <div
         style={{
           flex: 1,
@@ -2046,23 +2481,21 @@ export default function Management() {
               {roleCfg.label}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "7px",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: "9px",
-                padding: "7px 12px",
-                fontSize: "13px",
-                color: "#94a3b8",
-              }}
-            >
-              <FaSearch style={{ fontSize: "11px" }} />
-              <span>Search…</span>
-            </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "9px",
+              padding: "7px 12px",
+              fontSize: "13px",
+              color: "#94a3b8",
+            }}
+          >
+            <FaSearch style={{ fontSize: "11px" }} />
+            <span>Search…</span>
           </div>
         </header>
         <main style={{ flex: 1, padding: "24px 28px", overflowY: "auto" }}>
