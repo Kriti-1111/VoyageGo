@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 
+import customerRoutes from "./routes/customerRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
@@ -34,7 +35,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/drivers", driverRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/customers", customerRoutes);
 // ── 4. Health / test routes ───────────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.json({

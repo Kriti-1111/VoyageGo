@@ -67,19 +67,329 @@ function fmtHours(h) {
   const m = Math.round((h - hrs) * 60);
   return m ? `${hrs}h ${m}m` : `${hrs}h`;
 }
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
 function minNow() {
   const d = new Date();
   d.setMinutes(d.getMinutes() + 1);
   return d.toISOString().slice(0, 16);
 }
-function addDays(s, n) {
-  if (!s) return "";
-  const d = new Date(s);
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+
+// ── Driver popup ──────────────────────────────────────────────────────────────
+// ── Driver availability calendar — month grid view ────────────────────────────
+// Shows current month + can navigate forward. Booked days highlighted red.
+// Read-only — no interactions, no booking from here.
+function DriverCalendarStrip({ driver, slots, onClose }) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+
+  const futureSlots = (slots || [])
+    .filter((s) => new Date(s.end) > now)
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+  const nextFree = futureSlots.length > 0 ? new Date(futureSlots[0].end) : null;
+
+  function isBooked(day) {
+    const dayStart = new Date(year, month, day, 0, 0, 0);
+    const dayEnd = new Date(year, month, day, 23, 59, 59);
+    return (slots || []).some(
+      (s) => new Date(s.start) <= dayEnd && new Date(s.end) >= dayStart,
+    );
+  }
+
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = new Date(year, month).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const isToday = (d) =>
+    d &&
+    year === now.getFullYear() &&
+    month === now.getMonth() &&
+    d === now.getDate();
+  const isPast = (d) =>
+    d &&
+    new Date(year, month, d) <
+      new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const atMinMonth = year === now.getFullYear() && month === now.getMonth();
+
+  function prevMonth() {
+    if (month === 0) {
+      setMonth(11);
+      setYear((y) => y - 1);
+    } else setMonth((m) => m - 1);
+  }
+  function nextMonth() {
+    if (month === 11) {
+      setMonth(0);
+      setYear((y) => y + 1);
+    } else setMonth((m) => m + 1);
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.4)",
+        zIndex: 300,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          width: 280,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          overflow: "hidden",
+          fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
+        }}
+      >
+        {/* Driver name + availability */}
+        <div
+          style={{
+            padding: "14px 16px 8px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
+              {driver.name}
+            </p>
+            <p
+              style={{
+                margin: "2px 0 0",
+                fontSize: 11,
+                color: nextFree ? "#ef4444" : "#16a34a",
+              }}
+            >
+              {nextFree
+                ? `Unavailable until ${nextFree.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                : "Fully available"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 18,
+              color: "#94a3b8",
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: 0,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Month nav */}
+        <div
+          style={{
+            padding: "4px 10px 4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#0f172a",
+              paddingLeft: 4,
+            }}
+          >
+            {monthName}
+          </span>
+          <div style={{ display: "flex", gap: 2 }}>
+            <button
+              onClick={prevMonth}
+              disabled={atMinMonth}
+              style={{
+                background: "none",
+                border: "none",
+                borderRadius: 4,
+                width: 28,
+                height: 28,
+                cursor: atMinMonth ? "not-allowed" : "pointer",
+                color: atMinMonth ? "#dadce0" : "#5f6368",
+                fontSize: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+              }}
+            >
+              ‹
+            </button>
+            <button
+              onClick={nextMonth}
+              style={{
+                background: "none",
+                border: "none",
+                borderRadius: 4,
+                width: 28,
+                height: 28,
+                cursor: "pointer",
+                color: "#5f6368",
+                fontSize: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+              }}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+
+        {/* Su Mo Tu We Th Fr Sa */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7,1fr)",
+            padding: "2px 8px",
+          }}
+        >
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+            <div
+              key={d}
+              style={{
+                textAlign: "center",
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#70757a",
+                padding: "3px 0",
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7,1fr)",
+            padding: "0 8px 10px",
+          }}
+        >
+          {cells.map((d, i) => {
+            if (!d) return <div key={i} />;
+            const booked = isBooked(d);
+            const today = isToday(d);
+            const past = isPast(d);
+            return (
+              <div
+                key={i}
+                style={{
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  borderRadius: "50%",
+                  color: past
+                    ? "#dadce0"
+                    : booked
+                      ? "#dc2626"
+                      : today
+                        ? "#1a73e8"
+                        : "#3c4043",
+                  background: booked ? "#fce8e6" : "transparent",
+                  border: today
+                    ? "1px solid #1a73e8"
+                    : booked
+                      ? "1px solid #f28b82"
+                      : "1px solid transparent",
+                  fontWeight: today || booked ? 600 : 400,
+                }}
+              >
+                {d}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div
+          style={{
+            padding: "8px 12px 10px",
+            borderTop: "1px solid #f1f5f9",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              color: "#70757a",
+            }}
+          >
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "#fce8e6",
+                border: "1px solid #f28b82",
+                display: "inline-block",
+              }}
+            />{" "}
+            Booked
+          </span>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              color: "#70757a",
+            }}
+          >
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                border: "1px solid #1a73e8",
+                display: "inline-block",
+              }}
+            />{" "}
+            Today
+          </span>
+          <span style={{ marginLeft: "auto", fontSize: 10, color: "#dadce0" }}>
+            Read-only
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Driver popup ──────────────────────────────────────────────────────────────
@@ -88,15 +398,18 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
   const [slots, setSlots] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [calDriver, setCalDriver] = useState(null); // driver whose calendar is open
   const ref = useRef(null);
 
+  // Close popup on outside click (but not when calendar is open)
   useEffect(() => {
     const handler = (e) => {
+      if (calDriver) return; // calendar modal handles its own close
       if (ref.current && !ref.current.contains(e.target)) onClose();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
+  }, [onClose, calDriver]);
 
   useEffect(() => {
     if (!vehicleId) return;
@@ -136,224 +449,318 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
     );
   }
 
+  // "Unavailable until …" — end of the first conflicting slot
+  function unavailableUntil(driverId) {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const conflict = (slots[driverId] || [])
+      .filter((s) => new Date(s.start) < end && new Date(s.end) > start)
+      .sort((a, b) => new Date(a.end) - new Date(b.end));
+    if (!conflict.length) return null;
+    const until = new Date(conflict[conflict.length - 1].end);
+    return (
+      until.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
+      " at " +
+      until.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    );
+  }
+
   const filtered = drivers.filter(
     (d) =>
       !search || (d.name || "").toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
-    <div
-      ref={ref}
-      style={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        left: 0,
-        right: 0,
-        zIndex: 200,
-        background: "#fff",
-        borderRadius: 14,
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Search */}
+    <>
       <div
+        ref={ref}
         style={{
-          padding: "10px 12px",
-          borderBottom: "1px solid #f1f5f9",
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
+          position: "absolute",
+          top: "calc(100% + 8px)",
+          left: 0,
+          right: 0,
+          zIndex: 200,
+          background: "#fff",
+          borderRadius: 14,
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          overflow: "hidden",
         }}
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#94a3b8"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          autoFocus
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search drivers…"
+        {/* Search bar */}
+        <div
           style={{
-            flex: 1,
-            border: "none",
-            outline: "none",
-            fontSize: 13,
-            color: "#0f172a",
-            background: "transparent",
-          }}
-        />
-        <button
-          onClick={onClose}
-          style={{
-            background: "none",
-            border: "none",
-            fontSize: 18,
-            color: "#94a3b8",
-            cursor: "pointer",
-            lineHeight: 1,
+            padding: "10px 12px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
           }}
         >
-          &times;
-        </button>
-      </div>
-
-      {/* List */}
-      <div style={{ maxHeight: 260, overflowY: "auto" }}>
-        {loading && (
-          <p
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#94a3b8"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search drivers…"
             style={{
-              padding: 20,
-              textAlign: "center",
+              flex: 1,
+              border: "none",
+              outline: "none",
+              fontSize: 13,
+              color: "#0f172a",
+              background: "transparent",
+            }}
+          />
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 18,
               color: "#94a3b8",
-              fontSize: 13,
-              margin: 0,
+              cursor: "pointer",
+              lineHeight: 1,
             }}
           >
-            Loading drivers…
-          </p>
-        )}
-        {!loading && filtered.length === 0 && (
-          <p
-            style={{
-              padding: 20,
-              textAlign: "center",
-              color: "#64748b",
-              fontSize: 13,
-              margin: 0,
-            }}
-          >
-            {drivers.length === 0
-              ? "No drivers assigned to this vehicle."
-              : "No match."}
-          </p>
-        )}
-        {!loading &&
-          filtered.map((d) => {
-            const id = d._id || d.id;
-            const conflict = isConflict(id);
-            const rate = d.driverRatePerHour || 0;
-            return (
-              <div
-                key={id}
-                onClick={() => {
-                  if (!conflict) {
-                    onSelect(d);
-                    onClose();
-                  }
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "11px 14px",
-                  cursor: conflict ? "default" : "pointer",
-                  borderBottom: "1px solid #f8fafc",
-                  opacity: conflict ? 0.5 : 1,
-                  transition: "background 0.1s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!conflict) e.currentTarget.style.background = "#f8fafc";
-                }}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-              >
+            &times;
+          </button>
+        </div>
+
+        {/* Driver list */}
+        <div style={{ maxHeight: 280, overflowY: "auto" }}>
+          {loading && (
+            <p
+              style={{
+                padding: 20,
+                textAlign: "center",
+                color: "#94a3b8",
+                fontSize: 13,
+                margin: 0,
+              }}
+            >
+              Loading drivers…
+            </p>
+          )}
+
+          {!loading && filtered.length === 0 && (
+            <p
+              style={{
+                padding: 20,
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: 13,
+                margin: 0,
+              }}
+            >
+              {drivers.length === 0
+                ? "No drivers assigned to this vehicle."
+                : "No match."}
+            </p>
+          )}
+
+          {!loading &&
+            filtered.map((d) => {
+              const id = d._id || d.id;
+              const conflict = isConflict(id);
+              const rate = d.driverRatePerHour || 0;
+              const until = conflict ? unavailableUntil(id) : null;
+
+              return (
                 <div
+                  key={id}
+                  onClick={() => {
+                    if (!conflict) {
+                      onSelect(d);
+                      onClose();
+                    }
+                  }}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: "50%",
-                    background: conflict
-                      ? "#e2e8f0"
-                      : "linear-gradient(135deg,#6366f1,#8b5cf6)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    color: conflict ? "#94a3b8" : "#fff",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    flexShrink: 0,
+                    gap: 12,
+                    padding: "11px 14px",
+                    cursor: conflict ? "default" : "pointer",
+                    borderBottom: "1px solid #f8fafc",
+                    transition: "background 0.1s",
                   }}
+                  onMouseEnter={(e) => {
+                    if (!conflict) e.currentTarget.style.background = "#f8fafc";
+                  }}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
-                  {(d.name || "D")[0].toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
+                  {/* Avatar */}
+                  <div
                     style={{
-                      margin: 0,
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      background: conflict
+                        ? "#e2e8f0"
+                        : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: conflict ? "#94a3b8" : "#fff",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#0f172a",
-                    }}
-                  >
-                    {d.name}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
-                    {conflict
-                      ? "Not available for this time"
-                      : d.isAvailable
-                        ? "Available"
-                        : "Offline"}
-                    {rate > 0 && !conflict && ` · Rs ${rate}/hr`}
-                  </p>
-                </div>
-                {!conflict && (
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "#6366f1",
-                      background: "#eef2ff",
-                      border: "1px solid #c7d2fe",
-                      padding: "3px 9px",
-                      borderRadius: 20,
                       flexShrink: 0,
                     }}
                   >
-                    Select
-                  </span>
-                )}
-              </div>
-            );
-          })}
-      </div>
+                    {(d.name || "D")[0].toUpperCase()}
+                  </div>
 
-      {/* Footer */}
-      <div
-        style={{
-          padding: "10px 14px",
-          borderTop: "1px solid #f1f5f9",
-          background: "#fafafa",
-        }}
-      >
-        <button
-          onClick={() => {
-            onSelect(null);
-            onClose();
-          }}
+                  {/* Name + status */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: conflict ? "#94a3b8" : "#0f172a",
+                      }}
+                    >
+                      {d.name}
+                    </p>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        color: conflict ? "#ef4444" : "#64748b",
+                      }}
+                    >
+                      {conflict
+                        ? until
+                          ? `Unavailable until ${until}`
+                          : "Unavailable for this time"
+                        : d.isAvailable
+                          ? "🟢 Available"
+                          : "Offline"}
+                      {rate > 0 && !conflict && ` · Rs ${rate}/hr`}
+                    </p>
+                  </div>
+
+                  {/* Right side: calendar icon for conflicts, Select badge for available */}
+                  {conflict ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCalDriver(d);
+                      }}
+                      title="View schedule"
+                      style={{
+                        flexShrink: 0,
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 7,
+                        padding: "5px 8px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        color: "#64748b",
+                        fontWeight: 600,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#f1f5f9";
+                        e.currentTarget.style.borderColor = "#6366f1";
+                        e.currentTarget.style.color = "#6366f1";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f8fafc";
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                        e.currentTarget.style.color = "#64748b";
+                      }}
+                    >
+                      {/* Calendar icon */}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      Schedule
+                    </button>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#6366f1",
+                        background: "#eef2ff",
+                        border: "1px solid #c7d2fe",
+                        padding: "3px 9px",
+                        borderRadius: 20,
+                        flexShrink: 0,
+                      }}
+                    >
+                      Select
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Footer */}
+        <div
           style={{
-            fontSize: 12,
-            color: "#64748b",
-            fontWeight: 600,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
+            padding: "10px 14px",
+            borderTop: "1px solid #f1f5f9",
+            background: "#fafafa",
           }}
         >
-          Continue without a driver
-        </button>
+          <button
+            onClick={() => {
+              onSelect(null);
+              onClose();
+            }}
+            style={{
+              fontSize: 12,
+              color: "#64748b",
+              fontWeight: 600,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Continue without a driver
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* Calendar strip modal — rendered outside popup so it isn't clipped */}
+      {calDriver && (
+        <DriverCalendarStrip
+          driver={calDriver}
+          slots={slots[calDriver._id || calDriver.id]}
+          onClose={() => setCalDriver(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -373,10 +780,10 @@ export default function BookingPage() {
   const [vehicleErr, setVehicleErr] = useState(null);
 
   const [mode, setMode] = useState("hourly");
-  const [startDT, setStartDT] = useState("");
-  const [endDT, setEndDT] = useState("");
-  const [startDate, setStartDate] = useState(todayStr());
-  const [numDays, setNumDays] = useState(1);
+  const [startDT, setStartDT] = useState(""); // hourly: datetime-local
+  const [endDT, setEndDT] = useState(""); // hourly: datetime-local
+  const [dailyStart, setDailyStart] = useState(""); // daily: date only
+  const [dailyEnd, setDailyEnd] = useState(""); // daily: date only
   const [driver, setDriver] = useState(null);
   const [showPop, setShowPop] = useState(false);
   const [notes, setNotes] = useState("");
@@ -393,43 +800,36 @@ export default function BookingPage() {
       .finally(() => setLoadingV(false));
   }, [carId]);
 
-  const dailyEndDate = startDate ? addDays(startDate, numDays) : "";
-
   const driverRate = driver?.driverRatePerHour || 0;
 
+  // Active date values depending on mode
+  const activeStart = mode === "hourly" ? startDT : dailyStart;
+  const activeEnd = mode === "hourly" ? endDT : dailyEnd;
+
   const pricing = (() => {
-    if (!vehicle) return null;
-    if (mode === "hourly") {
-      if (!startDT || !endDT) return null;
-      return calcPrice(
-        vehicle.pricePerHour,
-        startDT,
-        endDT,
-        driverRate,
-        "hourly",
-      );
-    }
-    if (!startDate) return null;
+    if (!vehicle || !activeStart || !activeEnd) return null;
     return calcPrice(
       vehicle.pricePerHour,
-      startDate,
-      dailyEndDate,
+      activeStart,
+      activeEnd,
       driverRate,
-      "daily",
+      mode,
     );
   })();
 
   const validationError = (() => {
     if (!vehicle?.isActive) return "This vehicle is currently unavailable.";
+    if (!activeStart || !activeEnd) return null;
+    const hrs =
+      (new Date(activeEnd) - new Date(activeStart)) / (1000 * 60 * 60);
+    if (hrs <= 0) return "End must be after start.";
     if (mode === "hourly") {
-      if (!startDT || !endDT) return null;
-      const hrs = (new Date(endDT) - new Date(startDT)) / (1000 * 60 * 60);
       if (hrs < 1) return "Minimum booking is 1 hour.";
       if (hrs > 23)
-        return "Hourly bookings max 23 hours. Switch to Daily for longer.";
+        return "Hourly max 23 hours. Switch to Daily for longer trips.";
     } else {
-      if (numDays < 1) return "Minimum 1 day.";
-      if (numDays > 30) return "Maximum 30 days.";
+      if (hrs < 24) return "Daily bookings must be at least 1 full day.";
+      if (hrs > 30 * 24) return "Maximum 30 days.";
     }
     return null;
   })();
@@ -438,18 +838,10 @@ export default function BookingPage() {
 
   async function handleSubmit() {
     if (!canSubmit) return;
-    const startISO =
-      mode === "hourly"
-        ? new Date(startDT).toISOString()
-        : new Date(startDate).toISOString();
-    const endISO =
-      mode === "hourly"
-        ? new Date(endDT).toISOString()
-        : new Date(dailyEndDate).toISOString();
     const body = {
       vehicleId: carId,
-      startDate: startISO,
-      endDate: endISO,
+      startDate: new Date(activeStart).toISOString(),
+      endDate: new Date(activeEnd).toISOString(),
       notes,
       mode,
     };
@@ -518,14 +910,13 @@ export default function BookingPage() {
     );
 
   const durationLabel = (() => {
-    if (mode === "hourly" && startDT && endDT) {
-      const hrs = (new Date(endDT) - new Date(startDT)) / (1000 * 60 * 60);
-      if (hrs >= 1 && hrs <= 23) return `Duration: ${fmtHours(hrs)}`;
-    }
-    if (mode === "daily" && startDate) {
-      return `${new Date(startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} → ${new Date(dailyEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
-    }
-    return null;
+    if (!activeStart || !activeEnd) return null;
+    const hrs =
+      (new Date(activeEnd) - new Date(activeStart)) / (1000 * 60 * 60);
+    if (hrs <= 0) return null;
+    if (mode === "hourly") return `Duration: ${fmtHours(hrs)}`;
+    const days = Math.ceil(hrs / 24);
+    return `${new Date(activeStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} → ${new Date(activeEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (${days} day${days > 1 ? "s" : ""})`;
   })();
 
   return (
@@ -624,8 +1015,8 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Date/time inputs */}
-          {mode === "hourly" ? (
+          {/* Hourly: datetime-local pickers */}
+          {mode === "hourly" && (
             <div
               style={{
                 display: "grid",
@@ -663,61 +1054,44 @@ export default function BookingPage() {
                 />
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* Daily/Weekly: date-only pickers — Start date + End date */}
+          {mode === "daily" && (
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
                 gap: 12,
-                alignItems: "end",
               }}
             >
               <div>
                 <label style={lbl}>Start date</label>
                 <input
                   type="date"
-                  value={startDate}
-                  min={todayStr()}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  value={dailyStart}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => {
+                    setDailyStart(e.target.value);
+                    if (dailyEnd && dailyEnd <= e.target.value) setDailyEnd("");
+                  }}
                   style={inputStyle}
                 />
               </div>
               <div>
-                <label style={lbl}>Number of days</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    onClick={() => setNumDays((d) => Math.max(1, d - 1))}
-                    style={dayBtn}
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    value={numDays}
-                    min={1}
-                    max={30}
-                    onChange={(e) =>
-                      setNumDays(
-                        Math.min(
-                          30,
-                          Math.max(1, parseInt(e.target.value) || 1),
-                        ),
-                      )
-                    }
-                    style={{
-                      ...inputStyle,
-                      width: 64,
-                      textAlign: "center",
-                      padding: "10px 6px",
-                    }}
-                  />
-                  <button
-                    onClick={() => setNumDays((d) => Math.min(30, d + 1))}
-                    style={dayBtn}
-                  >
-                    +
-                  </button>
-                </div>
+                <label style={lbl}>End date</label>
+                <input
+                  type="date"
+                  value={dailyEnd}
+                  min={dailyStart || new Date().toISOString().slice(0, 10)}
+                  disabled={!dailyStart}
+                  onChange={(e) => setDailyEnd(e.target.value)}
+                  style={{
+                    ...inputStyle,
+                    background: !dailyStart ? "#f8fafc" : "#fff",
+                    cursor: !dailyStart ? "not-allowed" : "auto",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -740,7 +1114,7 @@ export default function BookingPage() {
           )}
 
           {/* Validation error */}
-          {validationError && (startDT || endDT || mode === "daily") && (
+          {validationError && (activeStart || activeEnd) && (
             <div
               style={{
                 background: "#fef2f2",
@@ -877,8 +1251,8 @@ export default function BookingPage() {
               {showPop && (
                 <DriverPopup
                   vehicleId={carId}
-                  startDate={mode === "hourly" ? startDT : startDate}
-                  endDate={mode === "hourly" ? endDT : dailyEndDate}
+                  startDate={activeStart}
+                  endDate={activeEnd}
                   onSelect={(d) => setDriver(d)}
                   onClose={() => setShowPop(false)}
                 />
@@ -1112,18 +1486,4 @@ const backBtn = {
   fontWeight: 600,
   cursor: "pointer",
   marginBottom: 24,
-};
-const dayBtn = {
-  width: 36,
-  height: 36,
-  borderRadius: 8,
-  border: "1px solid #e2e8f0",
-  background: "#fff",
-  color: "#334155",
-  fontSize: 18,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
 };

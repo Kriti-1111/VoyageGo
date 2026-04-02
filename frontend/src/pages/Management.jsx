@@ -1306,6 +1306,266 @@ function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
   );
 }
 
+// ─── Edit Vehicle Modal ───────────────────────────────────────────────────────
+function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    name: vehicle.name || "",
+    type: vehicle.type || "",
+    model: vehicle.model || "",
+    company: vehicle.company || "",
+    pricePerHour: String(vehicle.pricePerHour || ""),
+    passengerSeat: String(vehicle.passengerSeat || ""),
+    fuelType: vehicle.fuelType || "",
+    plateNumber: vehicle.plateNumber || "",
+    description: vehicle.description || "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await axios.patch(
+        `${ENDPOINTS.VEHICLES}/${vehicle._id || vehicle.id}`,
+        {
+          ...form,
+          pricePerHour: Number(form.pricePerHour),
+          passengerSeat: Number(form.passengerSeat),
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      onSaved();
+      onClose();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to save vehicle.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const lbl = {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#64748b",
+    display: "block",
+    marginBottom: "4px",
+    textTransform: "uppercase",
+  };
+  const inp = {
+    width: "100%",
+    padding: "9px 12px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "8px",
+    fontSize: "13px",
+    outline: "none",
+    background: "#f8fafc",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 540,
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "20px 24px",
+            borderBottom: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
+              Edit Vehicle
+            </h3>
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "#64748b" }}>
+              {vehicle.name}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 20,
+              color: "#94a3b8",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            &times;
+          </button>
+        </div>
+
+        {/* Form */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
+          >
+            {[
+              { key: "name", label: "Vehicle name", ph: "Toyota HiAce" },
+              { key: "model", label: "Model / year", ph: "2022" },
+              { key: "company", label: "Company", ph: "Toyota" },
+              {
+                key: "plateNumber",
+                label: "Plate number",
+                ph: "BA 1 KHA 1234",
+              },
+              { key: "pricePerHour", label: "Price / hr (Rs)", ph: "800" },
+              { key: "passengerSeat", label: "Seats", ph: "8" },
+            ].map(({ key, label, ph }) => (
+              <div key={key}>
+                <label style={lbl}>{label}</label>
+                <input
+                  value={form[key]}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, [key]: e.target.value }))
+                  }
+                  placeholder={ph}
+                  style={inp}
+                  onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                  onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+                />
+              </div>
+            ))}
+
+            <div>
+              <label style={lbl}>Type</label>
+              <select
+                value={form.type}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, type: e.target.value }))
+                }
+                style={{ ...inp, cursor: "pointer" }}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {["Car", "Van", "Bus", "Truck"].map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={lbl}>Fuel type</label>
+              <select
+                value={form.fuelType}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, fuelType: e.target.value }))
+                }
+                style={{ ...inp, cursor: "pointer" }}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {["Petrol", "Diesel", "Electric", "Hybrid"].map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={lbl}>Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, description: e.target.value }))
+                }
+                placeholder="Optional vehicle description…"
+                rows={2}
+                style={{ ...inp, resize: "none", fontFamily: "inherit" }}
+                onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "16px 24px",
+            borderTop: "1px solid #f1f5f9",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            flexShrink: 0,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "9px 20px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#64748b",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            style={{
+              padding: "9px 20px",
+              border: "none",
+              borderRadius: 9,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#fff",
+              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Vehicles Panel ───────────────────────────────────────────────────────────
 function VehiclesPanel({ isAdmin }) {
   const [vehicles, setVehicles] = useState([]);
@@ -1314,6 +1574,7 @@ function VehiclesPanel({ isAdmin }) {
   const [submitting, setSubmitting] = useState(false);
   const [assignTarget, setAssignTarget] = useState(null);
   const [imageTarget, setImageTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [form, setForm] = useState({
     name: "",
     type: "",
@@ -1955,33 +2216,61 @@ function VehiclesPanel({ isAdmin }) {
                         Delete
                       </button>
                     </div>
-                    <button
-                      onClick={() => setImageTarget(v)}
-                      style={{
-                        width: "100%",
-                        padding: "7px",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "7px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#334155",
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 6,
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background = "#f1f5f9")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "#f8fafc")
-                      }
-                    >
-                      <FaCamera style={{ fontSize: 10 }} />{" "}
-                      {v.imageUrl ? "Update Photo" : "Add Photo"}
-                    </button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={() => setEditTarget(v)}
+                        style={{
+                          flex: 1,
+                          padding: "7px",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "7px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#334155",
+                          background: "#f8fafc",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 5,
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#f1f5f9")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "#f8fafc")
+                        }
+                      >
+                        Edit Details
+                      </button>
+                      <button
+                        onClick={() => setImageTarget(v)}
+                        style={{
+                          flex: 1,
+                          padding: "7px",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "7px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#334155",
+                          background: "#f8fafc",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 5,
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#f1f5f9")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "#f8fafc")
+                        }
+                      >
+                        <FaCamera style={{ fontSize: 10 }} />{" "}
+                        {v.imageUrl ? "Photo" : "Add Photo"}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2003,6 +2292,14 @@ function VehiclesPanel({ isAdmin }) {
           vehicle={imageTarget}
           token={token}
           onClose={() => setImageTarget(null)}
+          onSaved={fetchV}
+        />
+      )}
+      {editTarget && (
+        <EditVehicleModal
+          vehicle={editTarget}
+          token={token}
+          onClose={() => setEditTarget(null)}
           onSaved={fetchV}
         />
       )}

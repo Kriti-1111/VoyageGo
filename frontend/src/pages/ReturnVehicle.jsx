@@ -24,28 +24,56 @@ function fmtDate(d) {
   });
 }
 
-// Mirrors backend fine logic
+// Mirrors backend fine logic — includes vehicle + driver fine
 // Grace: ≤30 min → no fine
-// 1–6 late hours: lateHours × pricePerHour
-// >6 late hours: one full daily rate (pricePerHour × 24 × 0.80)
-function calcFine(pricePerHour, scheduledEnd, now = new Date()) {
+// 1–6 late hours: lateHours × hourly rates
+// >6 late hours: one full daily rate each (vehicleDailyRate stored on booking, driverDailyRate = driverRate × 8)
+function calcFine(
+  pricePerHour,
+  driverRatePerHour = 0,
+  scheduledEnd,
+  now = new Date(),
+  vehicleDailyRate = null,
+  driverDailyRate = null,
+) {
   const delayMs = new Date(now) - new Date(scheduledEnd);
   const delayMins = delayMs / (1000 * 60);
 
   if (delayMins <= 30)
-    return { fine: 0, lateHours: 0, delayMins, isGrace: delayMins > 0 };
+    return {
+      vehicleFine: 0,
+      driverFine: 0,
+      fine: 0,
+      lateHours: 0,
+      delayMins,
+      isGrace: delayMins > 0,
+    };
 
   const lateHours = Math.ceil(delayMins / 60);
-  const dailyRate = pricePerHour * 24 * 0.8;
-  const fine =
-    lateHours > 6
-      ? Math.round(dailyRate)
-      : Math.round(lateHours * pricePerHour);
+  const vDailyRate = vehicleDailyRate || Math.round(pricePerHour * 24 * 0.8);
+  const dDailyRate = driverDailyRate || Math.round(driverRatePerHour * 8);
 
-  return { fine, lateHours, delayMins, isGrace: false, fullDay: lateHours > 6 };
+  const vehicleFine =
+    lateHours > 6 ? vDailyRate : Math.round(lateHours * pricePerHour);
+  const driverFine =
+    driverRatePerHour > 0
+      ? lateHours > 6
+        ? dDailyRate
+        : Math.round(lateHours * driverRatePerHour)
+      : 0;
+
+  return {
+    vehicleFine,
+    driverFine,
+    fine: vehicleFine + driverFine,
+    lateHours,
+    delayMins,
+    isGrace: false,
+    fullDay: lateHours > 6,
+  };
 }
 
-function TimeStatus({ endDate, pricePerHour }) {
+function TimeStatus({ endDate, pricePerHour, driverRatePerHour = 0 }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -59,7 +87,7 @@ function TimeStatus({ endDate, pricePerHour }) {
   const hrs = Math.floor(abs / (1000 * 60 * 60));
   const mins = Math.floor((abs % (1000 * 60 * 60)) / (1000 * 60));
   const label = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-  const { isGrace } = calcFine(pricePerHour, endDate, now);
+  const { isGrace } = calcFine(pricePerHour, driverRatePerHour, endDate, now);
 
   return (
     <div
@@ -407,10 +435,16 @@ export default function ReturnVehicle() {
     );
   }
 
-  // Live fine preview
+  // Live fine preview — includes vehicle + driver portions
+  const vRate = booking.vehicle?.pricePerHour || 0;
+  const dRate = booking.driver?.driverRatePerHour || 0;
   const finePreview = calcFine(
-    booking.vehicle?.pricePerHour || 0,
+    vRate,
+    dRate,
     booking.endDate,
+    new Date(),
+    booking.vehicleDailyRate,
+    booking.driverDailyRate,
   );
 
   return (
@@ -447,7 +481,8 @@ export default function ReturnVehicle() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <TimeStatus
             endDate={booking.endDate}
-            pricePerHour={booking.vehicle?.pricePerHour || 0}
+            pricePerHour={vRate}
+            driverRatePerHour={dRate}
           />
 
           {/* Booking summary */}
@@ -484,10 +519,16 @@ export default function ReturnVehicle() {
                 { label: "Trip started", value: fmtDate(booking.startDate) },
                 { label: "Scheduled return", value: fmtDate(booking.endDate) },
                 {
-                  label: "Original total",
-                  value: `Rs ${(booking.totalPrice || 0).toLocaleString()}`,
+                  label: "Vehicle rental",
+                  value: `Rs ${(booking.vehicleCost || 0).toLocaleString()}`,
                 },
-                { label: "Driver", value: booking.driver?.name || "No driver" },
+                {
+                  label: "Driver fee",
+                  value:
+                    booking.driverCost > 0
+                      ? `Rs ${booking.driverCost.toLocaleString()}`
+                      : "No driver",
+                },
               ].map(({ label, value }) => (
                 <div
                   key={label}
@@ -524,7 +565,7 @@ export default function ReturnVehicle() {
             </div>
           </div>
 
-          {/* Fine breakdown */}
+          {/* Fine breakdown — shows vehicle + driver split */}
           {finePreview.fine > 0 && (
             <div
               style={{
@@ -536,7 +577,7 @@ export default function ReturnVehicle() {
             >
               <p
                 style={{
-                  margin: "0 0 8px",
+                  margin: "0 0 10px",
                   fontSize: 12,
                   fontWeight: 700,
                   textTransform: "uppercase",
@@ -552,18 +593,40 @@ export default function ReturnVehicle() {
                   justifyContent: "space-between",
                   fontSize: 13,
                   color: "#ef4444",
-                  marginBottom: 4,
+                  marginBottom: 6,
                 }}
               >
                 <span>
                   {finePreview.fullDay
-                    ? `Over 6 hours late → one daily rate`
-                    : `${finePreview.lateHours} hour${finePreview.lateHours !== 1 ? "s" : ""} × Rs ${booking.vehicle?.pricePerHour}/hr`}
+                    ? "Over 6 hours late → one daily rate"
+                    : `${finePreview.lateHours}h × Rs ${vRate}/hr`}
+                  {" (vehicle)"}
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  Rs {finePreview.fine.toLocaleString()}
+                  Rs {finePreview.vehicleFine.toLocaleString()}
                 </span>
               </div>
+              {dRate > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                    color: "#ef4444",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span>
+                    {finePreview.fullDay
+                      ? "Over 6 hours late → one daily rate"
+                      : `${finePreview.lateHours}h × Rs ${dRate}/hr`}
+                    {" (driver)"}
+                  </span>
+                  <span style={{ fontWeight: 700 }}>
+                    Rs {finePreview.driverFine.toLocaleString()}
+                  </span>
+                </div>
+              )}
               <div
                 style={{
                   borderTop: "1px solid #fca5a5",
@@ -613,7 +676,7 @@ export default function ReturnVehicle() {
             </div>
           )}
 
-          {/* Fine policy info */}
+          {/* Fine policy */}
           <div
             style={{
               background: "#f8fafc",
@@ -640,12 +703,9 @@ export default function ReturnVehicle() {
                 lineHeight: 1.6,
               }}
             >
-              30 min grace · Rs {booking.vehicle?.pricePerHour}/hr per late hour
-              · Over 6 hours = one daily rate (Rs{" "}
-              {Math.round(
-                (booking.vehicle?.pricePerHour || 0) * 24 * 0.8,
-              ).toLocaleString()}
-              )
+              30 min grace · Rs {vRate}/hr per late hour (vehicle)
+              {dRate > 0 ? ` + Rs ${dRate}/hr (driver)` : ""} · Over 6 hours =
+              one full daily rate
             </p>
           </div>
 
@@ -673,7 +733,7 @@ export default function ReturnVehicle() {
             {submitting
               ? "Processing return…"
               : finePreview.fine > 0
-                ? `Confirm return — Rs ${finePreview.fine.toLocaleString()} fine applied`
+                ? `Confirm return — Rs ${finePreview.fine.toLocaleString()} fine applies`
                 : "Confirm vehicle return"}
           </button>
         </div>
