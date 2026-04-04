@@ -17,6 +17,7 @@ import BookingPage from "./pages/BookingPage";
 import ConditionReport from "./pages/ConditionReport";
 import ReturnVehicle from "./pages/ReturnVehicle";
 import Payment from "./pages/Payment";
+import EsewaReturn from "./pages/EsewaReturn";
 import ErrorPage from "./pages/ErrorPage";
 import Layout from "./components/Layout";
 
@@ -133,6 +134,10 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* ── Payment gateway returns — public routes, gateway redirects here ── */}
+        <Route path="/payment/esewa/return" element={<EsewaReturn />} />
+        <Route path="/payment/esewa/failure" element={<EsewaReturn />} />
 
         {/* ── Auth ── */}
         <Route

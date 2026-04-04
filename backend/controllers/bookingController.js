@@ -185,6 +185,12 @@ async function tryAutoActivate(booking) {
 // CUSTOMER: Create booking
 // POST /api/bookings
 // ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER: Create booking
+// POST /api/bookings
+//
+// requiresDriver = false → Self-drive → status: PendingPayment (no driver flow)
+// requiresDriver = true  → With driver → assign driver → status: PendingDriver
+// ─────────────────────────────────────────────────────────────────────────────
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -194,17 +200,27 @@ export const createBooking = async (req, res) => {
       notes,
       driverId,
       mode = "hourly",
+      requiresDriver = true, // NEW: false = self-drive
+      pickupType = "self", // NEW: "self" | "delivery"
+      pickupLocation = "", // NEW: address if delivery
     } = req.body;
+
     if (!["hourly", "daily"].includes(mode)) {
       return res
         .status(400)
         .json({ message: 'mode must be "hourly" or "daily".' });
     }
-
     if (!vehicleId || !startDate || !endDate) {
       return res
         .status(400)
         .json({ message: "vehicleId, startDate, and endDate are required." });
+    }
+    if (pickupType === "delivery" && !pickupLocation.trim()) {
+      return res
+        .status(400)
+        .json({
+          message: "Delivery address is required for delivery bookings.",
+        });
     }
 
     const start = new Date(startDate);
@@ -223,11 +239,12 @@ export const createBooking = async (req, res) => {
         .status(400)
         .json({ message: "This vehicle is not available." });
 
-    // Vehicle conflict check
+    // Vehicle conflict check — include PendingPayment in active statuses
     const vehicleConflict = await Booking.findOne({
       vehicle: vehicleId,
       status: {
         $in: [
+          BOOKING_STATUS.PENDING_PAYMENT,
           BOOKING_STATUS.PENDING_DRIVER,
           BOOKING_STATUS.CONFIRMED,
           BOOKING_STATUS.ACTIVE,
@@ -242,52 +259,55 @@ export const createBooking = async (req, res) => {
         .json({ message: "Vehicle is already booked for this time period." });
     }
 
-    const driverPool = (vehicle.drivers || []).map((d) => d._id || d);
     let assignedDriver = null;
     let driverRatePerHour = 0;
 
-    if (driverId) {
-      // Customer chose a specific driver
-      const driverConflict = await Booking.findOne({
-        driver: driverId,
-        status: {
-          $in: [
-            BOOKING_STATUS.PENDING_DRIVER,
-            BOOKING_STATUS.CONFIRMED,
-            BOOKING_STATUS.ACTIVE,
-          ],
-        },
-        startDate: { $lt: end },
-        endDate: { $gt: start },
-      });
-      if (driverConflict) {
-        return res
-          .status(409)
-          .json({
-            message: "The selected driver is not available for this time.",
-          });
+    if (requiresDriver) {
+      // ── With-driver flow ─────────────────────────────────────────────────────
+      const driverPool = (vehicle.drivers || []).map((d) => d._id || d);
+
+      if (driverId) {
+        const driverConflict = await Booking.findOne({
+          driver: driverId,
+          status: {
+            $in: [
+              BOOKING_STATUS.PENDING_DRIVER,
+              BOOKING_STATUS.CONFIRMED,
+              BOOKING_STATUS.ACTIVE,
+            ],
+          },
+          startDate: { $lt: end },
+          endDate: { $gt: start },
+        });
+        if (driverConflict) {
+          return res
+            .status(409)
+            .json({
+              message: "The selected driver is not available for this time.",
+            });
+        }
+        assignedDriver = driverId;
+      } else if (driverPool.length > 0) {
+        assignedDriver = await findAvailableDriver(driverPool, start, end);
+        if (!assignedDriver) {
+          return res
+            .status(400)
+            .json({
+              message:
+                "No drivers available for this time. Choose a different time or select a driver manually.",
+            });
+        }
       }
-      assignedDriver = driverId;
-    } else if (driverPool.length > 0) {
-      assignedDriver = await findAvailableDriver(driverPool, start, end);
-      if (!assignedDriver) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "No drivers are available for the selected time. Please choose a different time or select a specific driver.",
-          });
+
+      if (assignedDriver) {
+        const driverDoc =
+          await User.findById(assignedDriver).select("driverRatePerHour");
+        driverRatePerHour = driverDoc?.driverRatePerHour || 0;
       }
     }
+    // Self-drive: assignedDriver stays null, driverRatePerHour stays 0
 
-    // Fetch driver rate if driver assigned
-    if (assignedDriver) {
-      const driverDoc =
-        await User.findById(assignedDriver).select("driverRatePerHour");
-      driverRatePerHour = driverDoc?.driverRatePerHour || 0;
-    }
-
-    // Server-side price calculation — pass mode explicitly
+    // Price calculation — driver rate is 0 for self-drive
     const pricing = calculatePrice(
       vehicle.pricePerHour,
       start,
@@ -303,22 +323,34 @@ export const createBooking = async (req, res) => {
         });
     }
 
-    // Status: no driver → Confirmed (go straight to payment), driver → PendingDriver
-    const initialStatus = assignedDriver
-      ? BOOKING_STATUS.PENDING_DRIVER
-      : BOOKING_STATUS.CONFIRMED;
+    // ── Initial status ────────────────────────────────────────────────────────
+    // Self-drive      → PendingPayment (go straight to payment, no driver step)
+    // With driver assigned → PendingDriver (driver must accept first)
+    // With driver, none available on vehicle → PendingPayment (treat as self-drive)
+    let initialStatus;
+    if (!requiresDriver) {
+      initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
+    } else if (assignedDriver) {
+      initialStatus = BOOKING_STATUS.PENDING_DRIVER;
+    } else {
+      // requiresDriver=true but no drivers on vehicle — go straight to payment
+      initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
+    }
 
     const booking = await Booking.create({
       customer: req.user._id,
       vehicle: vehicleId,
       driver: assignedDriver,
+      requiresDriver: Boolean(requiresDriver),
+      pickupType,
+      pickupLocation: pickupType === "delivery" ? pickupLocation.trim() : "",
       startDate: start,
       endDate: end,
       mode: pricing.mode,
       vehicleCost: pricing.vehicleCost,
       driverCost: pricing.driverCost,
       totalPrice: pricing.total,
-      vehicleDailyRate: pricing.vehicleDailyRate, // stored so fine uses same discount
+      vehicleDailyRate: pricing.vehicleDailyRate,
       driverDailyRate: pricing.driverDailyRate,
       notes: notes || "",
       status: initialStatus,
@@ -462,17 +494,12 @@ export const processPayment = async (req, res) => {
     if (String(booking.customer) !== String(req.user._id)) {
       return res.status(403).json({ message: "Not authorised." });
     }
-    if (booking.status !== BOOKING_STATUS.CONFIRMED) {
-      return res
-        .status(400)
-        .json({
-          message: "Payment can only be submitted for Confirmed bookings.",
-        });
-    }
+
     if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
-      return res
-        .status(400)
-        .json({ message: "This booking has already been paid." });
+      return res.status(400).json({ message: "Already paid." });
+    }
+    if ([BOOKING_STATUS.CANCELLED, BOOKING_STATUS.COMPLETED].includes(booking.status)) {
+      return res.status(400).json({ message: "Invalid booking status for payment." });
     }
 
     booking.paymentMethod = method;
@@ -485,7 +512,6 @@ export const processPayment = async (req, res) => {
       bank: bank || null,
       transferDate: transferDate ? new Date(transferDate) : null,
     };
-    await booking.save();
 
     await notify({
       recipient: booking.customer,
@@ -495,7 +521,19 @@ export const processPayment = async (req, res) => {
       booking: booking._id,
     });
 
-    await tryAutoActivate(booking);
+    if (!booking.requiresDriver || booking.status === BOOKING_STATUS.CONFIRMED) {
+      booking.status = BOOKING_STATUS.ACTIVE;
+      await booking.save();
+      await notify({
+        recipient: booking.customer,
+        type: NOTIF_TYPES.BOOKING_ACTIVE,
+        title: "Booking confirmed and active",
+        message: `Your booking for ${booking.vehicle?.name || "the vehicle"} is active.`,
+        booking: booking._id,
+      });
+    } else {
+      await booking.save();
+    }
 
     const updated = await Booking.findById(id)
       .populate("customer", "name email phone")
@@ -647,9 +685,11 @@ export const cancelBooking = async (req, res) => {
       return res.status(403).json({ message: "Not authorised." });
     }
     if (
-      ![BOOKING_STATUS.PENDING_DRIVER, BOOKING_STATUS.CONFIRMED].includes(
-        booking.status,
-      )
+      ![
+        BOOKING_STATUS.PENDING_PAYMENT,
+        BOOKING_STATUS.PENDING_DRIVER,
+        BOOKING_STATUS.CONFIRMED,
+      ].includes(booking.status)
     ) {
       return res
         .status(400)

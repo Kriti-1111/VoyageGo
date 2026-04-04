@@ -780,10 +780,13 @@ export default function BookingPage() {
   const [vehicleErr, setVehicleErr] = useState(null);
 
   const [mode, setMode] = useState("hourly");
-  const [startDT, setStartDT] = useState(""); // hourly: datetime-local
-  const [endDT, setEndDT] = useState(""); // hourly: datetime-local
-  const [dailyStart, setDailyStart] = useState(""); // daily: date only
-  const [dailyEnd, setDailyEnd] = useState(""); // daily: date only
+  const [startDT, setStartDT] = useState("");
+  const [endDT, setEndDT] = useState("");
+  const [dailyStart, setDailyStart] = useState("");
+  const [dailyEnd, setDailyEnd] = useState("");
+  const [requiresDriver, setRequiresDriver] = useState(true); // true = with driver, false = self-drive
+  const [pickupType, setPickupType] = useState("self"); // "self" | "delivery"
+  const [pickupLocation, setPickupLocation] = useState("");
   const [driver, setDriver] = useState(null);
   const [showPop, setShowPop] = useState(false);
   const [notes, setNotes] = useState("");
@@ -800,9 +803,17 @@ export default function BookingPage() {
       .finally(() => setLoadingV(false));
   }, [carId]);
 
-  const driverRate = driver?.driverRatePerHour || 0;
+  function handleRequiresDriverChange(val) {
+    setRequiresDriver(val);
+    if (!val) {
+      setDriver(null);
+      setShowPop(false);
+    } // clear driver when switching to self-drive
+  }
 
-  // Active date values depending on mode
+  // Driver rate is 0 when self-drive
+  const driverRate = (requiresDriver && driver?.driverRatePerHour) || 0;
+
   const activeStart = mode === "hourly" ? startDT : dailyStart;
   const activeEnd = mode === "hourly" ? endDT : dailyEnd;
 
@@ -831,6 +842,8 @@ export default function BookingPage() {
       if (hrs < 24) return "Daily bookings must be at least 1 full day.";
       if (hrs > 30 * 24) return "Maximum 30 days.";
     }
+    if (pickupType === "delivery" && !pickupLocation.trim())
+      return "Please enter your delivery address.";
     return null;
   })();
 
@@ -844,8 +857,11 @@ export default function BookingPage() {
       endDate: new Date(activeEnd).toISOString(),
       notes,
       mode,
+      requiresDriver,
+      pickupType,
+      pickupLocation: pickupType === "delivery" ? pickupLocation.trim() : "",
     };
-    if (driver) body.driverId = driver._id || driver.id;
+    if (requiresDriver && driver) body.driverId = driver._id || driver.id;
     try {
       setSubmitting(true);
       await axios.post(`${API}/api/bookings`, body, {
@@ -1130,135 +1146,263 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* Driver section */}
+          {/* ── Do you need a driver? ─────────────────────────────────────── */}
           <div>
-            <label style={lbl}>
-              Driver{" "}
-              <span style={{ fontWeight: 400, color: "#94a3b8" }}>
-                (optional)
-              </span>
-            </label>
-            <div style={{ position: "relative" }}>
-              {driver ? (
-                <div
+            <label style={lbl}>Do you need a driver?</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[
+                {
+                  val: true,
+                  label: "👨‍✈️ Yes, with driver",
+                  sub: "Driver assigned to your trip",
+                },
+                {
+                  val: false,
+                  label: "🚗 No, self-drive",
+                  sub: "You drive the vehicle yourself",
+                },
+              ].map((opt) => (
+                <button
+                  key={String(opt.val)}
+                  onClick={() => handleRequiresDriverChange(opt.val)}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
+                    flex: 1,
                     padding: "10px 14px",
                     borderRadius: 10,
-                    border: "1.5px solid #86efac",
-                    background: "#f0fdf4",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    border: `1.5px solid ${requiresDriver === opt.val ? "#6366f1" : "#e2e8f0"}`,
+                    background: requiresDriver === opt.val ? "#eef2ff" : "#fff",
+                    transition: "all 0.15s",
                   }}
                 >
-                  <div
+                  <p
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
+                      margin: 0,
                       fontSize: 13,
                       fontWeight: 700,
-                      flexShrink: 0,
+                      color: requiresDriver === opt.val ? "#4f46e5" : "#334155",
                     }}
                   >
-                    {(driver.name || "D")[0].toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
+                    {opt.label}
+                  </p>
+                  <p
+                    style={{
+                      margin: "2px 0 0",
+                      fontSize: 11,
+                      color: "#94a3b8",
+                    }}
+                  >
+                    {opt.sub}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Self-drive: pickup option ─────────────────────────────────── */}
+          {!requiresDriver && (
+            <div>
+              <label style={lbl}>Pickup option</label>
+              <div style={{ display: "flex", gap: 10 }}>
+                {[
+                  {
+                    val: "self",
+                    label: "🏢 I will pick up",
+                    sub: "Come to our location",
+                  },
+                  {
+                    val: "delivery",
+                    label: "📦 Deliver to me",
+                    sub: "Vehicle brought to your address",
+                  },
+                ].map((opt) => (
+                  <button
+                    key={opt.val}
+                    onClick={() => {
+                      setPickupType(opt.val);
+                      if (opt.val === "self") setPickupLocation("");
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      border: `1.5px solid ${pickupType === opt.val ? "#6366f1" : "#e2e8f0"}`,
+                      background: pickupType === opt.val ? "#eef2ff" : "#fff",
+                      transition: "all 0.15s",
+                    }}
+                  >
                     <p
                       style={{
                         margin: 0,
                         fontSize: 13,
                         fontWeight: 700,
-                        color: "#0f172a",
+                        color: pickupType === opt.val ? "#4f46e5" : "#334155",
                       }}
                     >
-                      {driver.name}
+                      {opt.label}
                     </p>
-                    <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
-                      Driver requested
-                      {driver.driverRatePerHour > 0 &&
-                        ` · Rs ${driver.driverRatePerHour}/hr`}
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: 11,
+                        color: "#94a3b8",
+                      }}
+                    >
+                      {opt.sub}
                     </p>
-                  </div>
-                  <button
-                    onClick={() => setDriver(null)}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "#dc2626",
-                      background: "#fff1f2",
-                      border: "1px solid #fca5a5",
-                      borderRadius: 7,
-                      padding: "4px 10px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Remove
                   </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowPop((p) => !p)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    border: "1.5px dashed #c7d2fe",
-                    background: "#f8faff",
-                    color: "#6366f1",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 7,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#eef2ff";
-                    e.currentTarget.style.borderColor = "#6366f1";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#f8faff";
-                    e.currentTarget.style.borderColor = "#c7d2fe";
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                    <line x1="12" y1="14" x2="12" y2="20" />
-                    <line x1="9" y1="17" x2="15" y2="17" />
-                  </svg>
-                  Add a driver to this booking
-                </button>
-              )}
+                ))}
+              </div>
 
-              {showPop && (
-                <DriverPopup
-                  vehicleId={carId}
-                  startDate={activeStart}
-                  endDate={activeEnd}
-                  onSelect={(d) => setDriver(d)}
-                  onClose={() => setShowPop(false)}
-                />
+              {/* Delivery address */}
+              {pickupType === "delivery" && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={lbl}>Delivery address</label>
+                  <input
+                    value={pickupLocation}
+                    onChange={(e) => setPickupLocation(e.target.value)}
+                    placeholder="e.g. Thamel, Kathmandu (near Hotel XYZ)"
+                    style={inputStyle}
+                  />
+                </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* ── With driver: driver picker ────────────────────────────────── */}
+          {requiresDriver && (
+            <div>
+              <label style={lbl}>
+                Driver{" "}
+                <span style={{ fontWeight: 400, color: "#94a3b8" }}>
+                  (optional — one will be auto-assigned)
+                </span>
+              </label>
+              <div style={{ position: "relative" }}>
+                {driver ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      border: "1.5px solid #86efac",
+                      background: "#f0fdf4",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {(driver.name || "D")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#0f172a",
+                        }}
+                      >
+                        {driver.name}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
+                        Driver selected
+                        {driver.driverRatePerHour > 0 &&
+                          ` · Rs ${driver.driverRatePerHour}/hr`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setDriver(null)}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#dc2626",
+                        background: "#fff1f2",
+                        border: "1px solid #fca5a5",
+                        borderRadius: 7,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowPop((p) => !p)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      border: "1.5px dashed #c7d2fe",
+                      background: "#f8faff",
+                      color: "#6366f1",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 7,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#eef2ff";
+                      e.currentTarget.style.borderColor = "#6366f1";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#f8faff";
+                      e.currentTarget.style.borderColor = "#c7d2fe";
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                      <line x1="12" y1="14" x2="12" y2="20" />
+                      <line x1="9" y1="17" x2="15" y2="17" />
+                    </svg>
+                    Choose a specific driver (or one will be auto-assigned)
+                  </button>
+                )}
+
+                {showPop && (
+                  <DriverPopup
+                    vehicleId={carId}
+                    startDate={activeStart}
+                    endDate={activeEnd}
+                    onSelect={(d) => setDriver(d)}
+                    onClose={() => setShowPop(false)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div>
@@ -1271,13 +1415,13 @@ export default function BookingPage() {
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Pickup details, special instructions…"
+              placeholder="Any special instructions…"
               rows={2}
               style={{ ...inputStyle, resize: "none", fontFamily: "inherit" }}
             />
           </div>
 
-          {/* Price summary — shows breakdown */}
+          {/* Price summary */}
           {pricing && !validationError && (
             <div
               style={{
@@ -1299,7 +1443,40 @@ export default function BookingPage() {
                 Price summary
               </p>
 
-              {/* Vehicle cost row */}
+              {/* Mode badge */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    background: requiresDriver ? "#eef2ff" : "#f0fdf4",
+                    color: requiresDriver ? "#6366f1" : "#16a34a",
+                    border: `1px solid ${requiresDriver ? "#c7d2fe" : "#bbf7d0"}`,
+                  }}
+                >
+                  {requiresDriver ? "With driver" : "Self-drive"}
+                </span>
+                {!requiresDriver && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                      borderRadius: 20,
+                      background: "#f8fafc",
+                      color: "#64748b",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {pickupType === "delivery"
+                      ? "📦 Delivery"
+                      : "🏢 Self pickup"}
+                  </span>
+                )}
+              </div>
+
               <div
                 style={{
                   display: "flex",
@@ -1319,8 +1496,7 @@ export default function BookingPage() {
                 </span>
               </div>
 
-              {/* Driver cost row */}
-              {driver && driverRate > 0 && (
+              {requiresDriver && driver && driverRate > 0 && (
                 <div
                   style={{
                     display: "flex",
@@ -1340,8 +1516,7 @@ export default function BookingPage() {
                   </span>
                 </div>
               )}
-
-              {driver && driverRate === 0 && (
+              {requiresDriver && !driver && (
                 <div
                   style={{
                     display: "flex",
@@ -1351,13 +1526,12 @@ export default function BookingPage() {
                   }}
                 >
                   <span style={{ color: "#64748b" }}>Driver fee</span>
-                  <span style={{ color: "#16a34a", fontWeight: 600 }}>
-                    Included
+                  <span style={{ color: "#94a3b8", fontWeight: 500 }}>
+                    Calculated after driver assigns
                   </span>
                 </div>
               )}
 
-              {/* Divider + total */}
               <div
                 style={{
                   borderTop: "1px solid #e2e8f0",
@@ -1379,22 +1553,15 @@ export default function BookingPage() {
                 </span>
               </div>
 
-              {pricing.driverCost > 0 && (
-                <p
-                  style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}
-                >
-                  Driver included · Late returns: Rs {vehicle.pricePerHour}/hr
-                  (vehicle) + Rs {driverRate}/hr (driver)
-                </p>
-              )}
-              {!driver && (
-                <p
-                  style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}
-                >
-                  No driver · Late returns charged at Rs {vehicle.pricePerHour}
-                  /hr
-                </p>
-              )}
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#94a3b8" }}>
+                {requiresDriver
+                  ? "Payment unlocks after driver confirms · Late returns: Rs " +
+                    vehicle.pricePerHour +
+                    "/hr"
+                  : "Pay now to confirm · Self-drive · Late returns: Rs " +
+                    vehicle.pricePerHour +
+                    "/hr"}
+              </p>
             </div>
           )}
 
@@ -1425,9 +1592,11 @@ export default function BookingPage() {
               ? "Submitting…"
               : !pricing
                 ? "Fill in the details above"
-                : driver
-                  ? `Confirm booking with ${driver.name}`
-                  : "Confirm booking"}
+                : requiresDriver
+                  ? driver
+                    ? `Request booking with ${driver.name}`
+                    : "Request booking (driver auto-assigned)"
+                  : "Confirm booking & pay"}
           </button>
         </div>
       </div>

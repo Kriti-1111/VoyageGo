@@ -22,144 +22,20 @@ function fmtDate(d) {
   });
 }
 
-const METHODS = [
-  {
-    key: "Card",
-    title: "Credit / Debit card",
-    desc: "Visa, Mastercard, or any local card",
-  },
-  { key: "Wallet", title: "Digital wallet", desc: "eSewa, Khalti, or similar" },
-  {
-    key: "Bank",
-    title: "Bank transfer",
-    desc: "Direct transfer to our bank account",
-  },
-];
-
-function CardForm({ values, onChange }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div>
-        <label style={lbl}>Card number</label>
-        <input
-          maxLength={19}
-          placeholder="0000 0000 0000 0000"
-          value={values.number}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
-            onChange("number", raw.replace(/(.{4})/g, "$1 ").trim());
-          }}
-          style={inp}
-        />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <div>
-          <label style={lbl}>Expiry (MM/YY)</label>
-          <input
-            maxLength={5}
-            placeholder="MM/YY"
-            value={values.expiry}
-            onChange={(e) => {
-              const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
-              onChange(
-                "expiry",
-                raw.length > 2 ? raw.slice(0, 2) + "/" + raw.slice(2) : raw,
-              );
-            }}
-            style={inp}
-          />
-        </div>
-        <div>
-          <label style={lbl}>CVV</label>
-          <input
-            maxLength={4}
-            placeholder="123"
-            type="password"
-            value={values.cvv}
-            onChange={(e) =>
-              onChange("cvv", e.target.value.replace(/\D/g, "").slice(0, 4))
-            }
-            style={inp}
-          />
-        </div>
-      </div>
-      <div>
-        <label style={lbl}>Name on card</label>
-        <input
-          placeholder="Full name as on card"
-          value={values.name}
-          onChange={(e) => onChange("name", e.target.value)}
-          style={inp}
-        />
-      </div>
-    </div>
-  );
-}
-
-function WalletForm({ values, onChange }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div>
-        <label style={lbl}>Wallet provider</label>
-        <select
-          value={values.provider}
-          onChange={(e) => onChange("provider", e.target.value)}
-          style={inp}
-        >
-          <option value="">Select provider…</option>
-          <option>eSewa</option>
-          <option>Khalti</option>
-          <option>IME Pay</option>
-          <option>FonePay</option>
-        </select>
-      </div>
-      <div>
-        <label style={lbl}>Registered mobile number</label>
-        <input
-          placeholder="98XXXXXXXX"
-          value={values.phone}
-          onChange={(e) =>
-            onChange("phone", e.target.value.replace(/\D/g, "").slice(0, 10))
-          }
-          style={inp}
-        />
-      </div>
-    </div>
-  );
-}
-
-function BankForm({ values, onChange }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div>
-        <label style={lbl}>Transfer reference</label>
-        <input
-          placeholder="e.g. TRN-20250101-001"
-          value={values.reference}
-          onChange={(e) => onChange("reference", e.target.value)}
-          style={inp}
-        />
-      </div>
-      <div>
-        <label style={lbl}>Bank name</label>
-        <input
-          placeholder="e.g. NMB Bank"
-          value={values.bank}
-          onChange={(e) => onChange("bank", e.target.value)}
-          style={inp}
-        />
-      </div>
-      <div>
-        <label style={lbl}>Transfer date</label>
-        <input
-          type="date"
-          value={values.date}
-          onChange={(e) => onChange("date", e.target.value)}
-          style={inp}
-        />
-      </div>
-    </div>
-  );
+// eSewa v2: must POST a form (not a redirect) to the eSewa URL
+function submitEsewaForm({ url, params }) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = url;
+  Object.entries(params).forEach(([key, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
 }
 
 export default function Payment() {
@@ -170,19 +46,19 @@ export default function Payment() {
   const [booking, setBooking] = useState(null);
   const [loadingB, setLoadingB] = useState(true);
   const [bookingErr, setBookingErr] = useState(null);
-  const [method, setMethod] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [paying, setPaying] = useState(null); // "esewa" | null
   const [toast, setToast] = useState(null);
 
+  // Manual payment fallback
+  const [manualMethod, setManualMethod] = useState(null);
   const [card, setCard] = useState({
     number: "",
     expiry: "",
     cvv: "",
     name: "",
   });
-  const [wallet, setWallet] = useState({ provider: "", phone: "" });
   const [bank, setBank] = useState({ reference: "", bank: "", date: "" });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -201,34 +77,72 @@ export default function Payment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
-  const canPay = (() => {
-    if (!booking || !method) return false;
-    if (method === "Card")
+  // ── eSewa ──────────────────────────────────────────────────────────────────
+  async function handleEsewa() {
+    setPaying("esewa");
+    try {
+      const { data } = await axios.post(
+        `${API}/api/pay/esewa/initiate`,
+        { bookingId },
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      // Save token so EsewaReturn can verify after the page redirect
+      sessionStorage.setItem("token", getToken());
+      submitEsewaForm(data);
+    } catch (e) {
+      showToast(
+        e.response?.data?.message || "eSewa initiation failed.",
+        "error",
+      );
+      setPaying(null);
+    }
+  }
+
+  // ── Demo pay — FYP fallback ────────────────────────────────────────────────
+  const [demoPaying, setDemoPaying] = useState(false);
+  async function handleDemoPay() {
+    setDemoPaying(true);
+    try {
+      await axios.post(
+        `${API}/api/bookings/${bookingId}/demo-pay`,
+        {},
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      navigate("/customer");
+    } catch (e) {
+      showToast(e.response?.data?.message || "Demo pay failed.", "error");
+    } finally {
+      setDemoPaying(false);
+    }
+  }
+
+  // ── Manual fallback ─────────────────────────────────────────────────────────
+  const canSubmitManual = (() => {
+    if (!manualMethod) return false;
+    if (manualMethod === "Card")
       return (
         card.number.replace(/\s/g, "").length === 16 &&
         card.expiry.length === 5 &&
         card.cvv.length >= 3 &&
         card.name.length > 1
       );
-    if (method === "Wallet")
-      return wallet.provider && wallet.phone.length === 10;
-    if (method === "Bank") return bank.reference && bank.bank && bank.date;
+    if (manualMethod === "Bank")
+      return bank.reference && bank.bank && bank.date;
     return false;
   })();
 
-  async function handlePay() {
-    if (!canPay || submitting) return;
+  async function handleManual() {
+    if (!canSubmitManual || submitting) return;
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       await axios.post(
         `${API}/api/bookings/${bookingId}/payment`,
         {
-          method,
-          ...(method === "Card" && {
+          method: manualMethod,
+          ...(manualMethod === "Card" && {
             last4: card.number.replace(/\s/g, "").slice(-4),
           }),
-          ...(method === "Wallet" && { provider: wallet.provider }),
-          ...(method === "Bank" && {
+          ...(manualMethod === "Bank" && {
             reference: bank.reference,
             bank: bank.bank,
             transferDate: bank.date,
@@ -236,12 +150,11 @@ export default function Payment() {
         },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
-      setDone(true);
-    } catch (err) {
-      showToast(
-        err.response?.data?.message || "Payment failed. Try again.",
-        "error",
+      navigate(
+        `/payment/success?bookingId=${bookingId}&method=${manualMethod}`,
       );
+    } catch (e) {
+      showToast(e.response?.data?.message || "Payment failed.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -249,7 +162,7 @@ export default function Payment() {
 
   function showToast(msg, type) {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 4500);
+    setTimeout(() => setToast(null), 5000);
   }
 
   if (loadingB)
@@ -262,7 +175,9 @@ export default function Payment() {
           justifyContent: "center",
         }}
       >
-        <p style={{ color: "#64748b" }}>Loading booking…</p>
+        <p style={{ color: "#64748b", fontFamily: "DM Sans,system-ui" }}>
+          Loading booking…
+        </p>
       </div>
     );
 
@@ -308,131 +223,12 @@ export default function Payment() {
       </div>
     );
 
-  if (done)
-    return (
-      <div
-        style={{
-          maxWidth: 480,
-          margin: "60px auto",
-          padding: "0 20px",
-          fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: "50%",
-            background: "#f0fdf4",
-            border: "2px solid #86efac",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 20px",
-          }}
-        >
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#16a34a"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <h2
-          style={{
-            margin: "0 0 8px",
-            fontSize: 24,
-            fontWeight: 800,
-            color: "#0f172a",
-          }}
-        >
-          Booking Active!
-        </h2>
-        <p
-          style={{
-            margin: "0 0 6px",
-            fontSize: 14,
-            color: "#64748b",
-            lineHeight: 1.6,
-          }}
-        >
-          Payment received. Your booking is now{" "}
-          <strong style={{ color: "#16a34a" }}>Active</strong>.
-        </p>
-        <p style={{ margin: "0 0 28px", fontSize: 13, color: "#94a3b8" }}>
-          Your trip starts at {fmtDate(booking?.startDate)}.
-        </p>
-
-        <div
-          style={{
-            background: "#f8fafc",
-            borderRadius: 14,
-            border: "1px solid #e2e8f0",
-            padding: "18px",
-            marginBottom: 24,
-            textAlign: "left",
-          }}
-        >
-          {[
-            { label: "Vehicle", value: booking?.vehicle?.name },
-            { label: "Driver", value: booking?.driver?.name || "Assigned" },
-            { label: "Start", value: fmtDate(booking?.startDate) },
-            { label: "End", value: fmtDate(booking?.endDate) },
-            {
-              label: "Total",
-              value: `Rs ${(booking?.totalPrice || 0).toLocaleString()}`,
-            },
-            { label: "Method", value: method },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 13,
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ color: "#64748b" }}>{label}</span>
-              <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                {value || "—"}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={() => navigate("/customer")}
-          style={{
-            width: "100%",
-            padding: "13px",
-            borderRadius: 12,
-            border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          Go to My Bookings
-        </button>
-      </div>
-    );
-
   return (
     <>
-      <style>{`* { box-sizing: border-box; }`}</style>
+      <style>{`* { box-sizing: border-box; } @keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div
         style={{
-          maxWidth: 680,
+          maxWidth: 560,
           margin: "0 auto",
           padding: "32px 20px 80px",
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
@@ -442,264 +238,444 @@ export default function Payment() {
           Back to Dashboard
         </button>
 
-        <div style={{ marginBottom: 24 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#0f172a",
-            }}
-          >
-            Complete payment
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>
-            {booking?.vehicle?.name} · {fmtDate(booking?.startDate)} to{" "}
-            {fmtDate(booking?.endDate)}
-          </p>
-        </div>
+        <h1
+          style={{
+            margin: "0 0 4px",
+            fontSize: 22,
+            fontWeight: 800,
+            color: "#0f172a",
+          }}
+        >
+          Complete payment
+        </h1>
+        <p style={{ margin: "0 0 4px", fontSize: 14, color: "#64748b" }}>
+          {booking?.vehicle?.name} · {fmtDate(booking?.startDate)} →{" "}
+          {fmtDate(booking?.endDate)}
+        </p>
 
+        {/* Test mode badge */}
         <div
           style={{
-            background: "#f0fdf4",
-            border: "1px solid #86efac",
-            borderRadius: 12,
-            padding: "14px 16px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 20,
+            padding: "4px 12px",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#b45309",
+            marginTop: 8,
             marginBottom: 24,
           }}
         >
-          <p
+          <span
             style={{
-              margin: 0,
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#15803d",
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "#f59e0b",
             }}
-          >
-            Instant activation — your booking goes Active immediately after
-            payment.
-          </p>
+          />
+          Test Payment Mode — No real money deducted
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 280px",
-            gap: 24,
+            gridTemplateColumns: "1fr 1.6fr",
+            gap: 20,
             alignItems: "start",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
-              <label style={{ ...lbl, marginBottom: 10 }}>
-                Payment method <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {METHODS.map((m) => (
-                  <button
-                    key={m.key}
-                    onClick={() => setMethod(m.key)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "14px 16px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "all 0.15s",
-                      border: `2px solid ${method === m.key ? "#6366f1" : "#e2e8f0"}`,
-                      background: method === m.key ? "#eef2ff" : "#fff",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: "50%",
-                        border: `2px solid ${method === m.key ? "#6366f1" : "#cbd5e1"}`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {method === m.key && (
-                        <div
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background: "#6366f1",
-                          }}
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                        }}
-                      >
-                        {m.title}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-                        {m.desc}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {!method && (
-                <p
-                  style={{ margin: "8px 0 0", fontSize: 12, color: "#94a3b8" }}
-                >
-                  Select a payment method to continue.
-                </p>
-              )}
-            </div>
-
-            {method && (
+          {/* Order summary */}
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: 14,
+              padding: "18px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            }}
+          >
+            <p
+              style={{
+                margin: "0 0 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#94a3b8",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              Order summary
+            </p>
+            {[
+              { label: "Vehicle", value: booking?.vehicle?.name },
+              {
+                label: "Driver",
+                value:
+                  booking?.driver?.name ||
+                  (booking?.requiresDriver === false
+                    ? "Self-drive"
+                    : "No driver"),
+              },
+              { label: "Start", value: fmtDate(booking?.startDate) },
+              { label: "End", value: fmtDate(booking?.endDate) },
+            ].map(({ label, value }) => (
               <div
+                key={label}
                 style={{
-                  background: "#fff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: "20px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 13,
+                  marginBottom: 8,
                 }}
               >
-                <p
+                <span style={{ color: "#64748b" }}>{label}</span>
+                <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                  {value || "—"}
+                </span>
+              </div>
+            ))}
+            <div
+              style={{
+                borderTop: "1px solid #e2e8f0",
+                paddingTop: 10,
+                marginTop: 4,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                Total
+              </span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "#6366f1" }}>
+                Rs {(booking?.totalPrice || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Payment methods */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* ── eSewa ── */}
+            <button
+              onClick={handleEsewa}
+              disabled={!!paying}
+              style={{
+                width: "100%",
+                padding: "14px 18px",
+                borderRadius: 12,
+                border: "none",
+                cursor: paying ? "not-allowed" : "pointer",
+                background: paying === "esewa" ? "#5fbe00" : "#60bb46",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                opacity: paying && paying !== "esewa" ? 0.5 : 1,
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!paying) e.currentTarget.style.background = "#4fa33a";
+              }}
+              onMouseLeave={(e) => {
+                if (!paying) e.currentTarget.style.background = "#60bb46";
+              }}
+            >
+              {paying === "esewa" ? (
+                <>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      border: "2px solid rgba(255,255,255,0.4)",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                  Redirecting to eSewa…
+                </>
+              ) : (
+                <>
+                  <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+                    <rect
+                      width="40"
+                      height="40"
+                      rx="8"
+                      fill="white"
+                      fillOpacity=".18"
+                    />
+                    <text
+                      x="50%"
+                      y="56%"
+                      dominantBaseline="middle"
+                      textAnchor="middle"
+                      fontSize="17"
+                      fontWeight="800"
+                      fill="white"
+                    >
+                      e
+                    </text>
+                  </svg>
+                  Pay with eSewa
+                </>
+              )}
+            </button>
+
+            {/* Demo Pay — FYP fallback when eSewa sandbox is unavailable */}
+            <button
+              onClick={handleDemoPay}
+              disabled={!!paying || demoPaying}
+              style={{
+                width: "100%",
+                padding: "11px",
+                borderRadius: 10,
+                border: "1.5px dashed #94a3b8",
+                background: "#f8fafc",
+                color: "#475569",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: paying || demoPaying ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                opacity: paying ? 0.5 : 1,
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!paying && !demoPaying)
+                  e.currentTarget.style.background = "#f1f5f9";
+              }}
+              onMouseLeave={(e) => {
+                if (!paying && !demoPaying)
+                  e.currentTarget.style.background = "#f8fafc";
+              }}
+            >
+              {demoPaying ? (
+                <>
+                  <span
+                    style={{
+                      width: 13,
+                      height: 13,
+                      border: "2px solid #94a3b8",
+                      borderTopColor: "#475569",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                  Processing…
+                </>
+              ) : (
+                <>🔧 Demo Pay — simulate eSewa (FYP use only)</>
+              )}
+            </button>
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+              <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>
+                or pay manually
+              </span>
+              <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+            </div>
+
+            {/* Manual method selector */}
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { key: "Card", label: "Card" },
+                { key: "Bank", label: "Bank Transfer" },
+              ].map((m) => (
+                <button
+                  key={m.key}
+                  onClick={() =>
+                    setManualMethod(m.key === manualMethod ? null : m.key)
+                  }
                   style={{
-                    margin: "0 0 14px",
+                    flex: 1,
+                    padding: "9px",
+                    borderRadius: 9,
                     fontSize: 13,
-                    fontWeight: 700,
-                    color: "#0f172a",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: `1.5px solid ${manualMethod === m.key ? "#6366f1" : "#e2e8f0"}`,
+                    background: manualMethod === m.key ? "#eef2ff" : "#fff",
+                    color: manualMethod === m.key ? "#6366f1" : "#64748b",
+                    transition: "all 0.15s",
                   }}
                 >
-                  {METHODS.find((m2) => m2.key === method)?.title} details
-                </p>
-                {method === "Card" && (
-                  <CardForm
-                    values={card}
-                    onChange={(k, v) => setCard((p) => ({ ...p, [k]: v }))}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Card form */}
+            {manualMethod === "Card" && (
+              <div
+                style={{
+                  background: "#f8fafc",
+                  borderRadius: 10,
+                  padding: "14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <div>
+                  <label style={lbl}>Card number</label>
+                  <input
+                    maxLength={19}
+                    placeholder="0000 0000 0000 0000"
+                    value={card.number}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 16);
+                      setCard((p) => ({
+                        ...p,
+                        number: raw.replace(/(.{4})/g, "$1 ").trim(),
+                      }));
+                    }}
+                    style={inp}
                   />
-                )}
-                {method === "Wallet" && (
-                  <WalletForm
-                    values={wallet}
-                    onChange={(k, v) => setWallet((p) => ({ ...p, [k]: v }))}
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <label style={lbl}>Expiry</label>
+                    <input
+                      maxLength={5}
+                      placeholder="MM/YY"
+                      value={card.expiry}
+                      onChange={(e) => {
+                        const raw = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 4);
+                        setCard((p) => ({
+                          ...p,
+                          expiry:
+                            raw.length > 2
+                              ? raw.slice(0, 2) + "/" + raw.slice(2)
+                              : raw,
+                        }));
+                      }}
+                      style={inp}
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>CVV</label>
+                    <input
+                      maxLength={4}
+                      placeholder="123"
+                      type="password"
+                      value={card.cvv}
+                      onChange={(e) =>
+                        setCard((p) => ({
+                          ...p,
+                          cvv: e.target.value.replace(/\D/g, "").slice(0, 4),
+                        }))
+                      }
+                      style={inp}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={lbl}>Name on card</label>
+                  <input
+                    placeholder="Full name"
+                    value={card.name}
+                    onChange={(e) =>
+                      setCard((p) => ({ ...p, name: e.target.value }))
+                    }
+                    style={inp}
                   />
-                )}
-                {method === "Bank" && (
-                  <BankForm
-                    values={bank}
-                    onChange={(k, v) => setBank((p) => ({ ...p, [k]: v }))}
-                  />
-                )}
+                </div>
               </div>
             )}
 
-            <button
-              onClick={handlePay}
-              disabled={!canPay || submitting}
-              style={{
-                width: "100%",
-                padding: "14px",
-                borderRadius: 12,
-                border: "none",
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: canPay && !submitting ? "pointer" : "not-allowed",
-                background: canPay
-                  ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
-                  : "#e2e8f0",
-                color: canPay ? "#fff" : "#94a3b8",
-                transition: "opacity 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (canPay) e.currentTarget.style.opacity = "0.88";
-              }}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              {submitting
-                ? "Processing…"
-                : !method
-                  ? "Select a payment method first"
-                  : !canPay
-                    ? "Fill in all details"
-                    : `Pay Rs ${(booking?.totalPrice || 0).toLocaleString()} — Activate now`}
-            </button>
-          </div>
-
-          <div style={{ position: "sticky", top: 24 }}>
-            <div
-              style={{
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: 14,
-                padding: "20px",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-              }}
-            >
-              <p
-                style={{
-                  margin: "0 0 14px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#0f172a",
-                }}
-              >
-                Order summary
-              </p>
-              {[
-                { label: "Vehicle", value: booking?.vehicle?.name },
-                { label: "Type", value: booking?.vehicle?.type },
-                {
-                  label: "Driver",
-                  value: booking?.driver?.name || "Auto-assigned",
-                },
-                { label: "Start", value: fmtDate(booking?.startDate) },
-                { label: "End", value: fmtDate(booking?.endDate) },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontSize: 13,
-                    marginBottom: 8,
-                  }}
-                >
-                  <span style={{ color: "#64748b" }}>{label}</span>
-                  <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                    {value || "—"}
-                  </span>
-                </div>
-              ))}
+            {/* Bank form */}
+            {manualMethod === "Bank" && (
               <div
                 style={{
-                  borderTop: "1px solid #e2e8f0",
-                  paddingTop: 12,
-                  marginTop: 4,
+                  background: "#f8fafc",
+                  borderRadius: 10,
+                  padding: "14px",
                   display: "flex",
-                  justifyContent: "space-between",
+                  flexDirection: "column",
+                  gap: 10,
                 }}
               >
-                <span
-                  style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}
-                >
-                  Total
-                </span>
-                <span
-                  style={{ fontSize: 18, fontWeight: 800, color: "#6366f1" }}
-                >
-                  Rs {(booking?.totalPrice || 0).toLocaleString()}
-                </span>
+                <div>
+                  <label style={lbl}>Transfer reference</label>
+                  <input
+                    placeholder="e.g. TRN-20260405-001"
+                    value={bank.reference}
+                    onChange={(e) =>
+                      setBank((p) => ({ ...p, reference: e.target.value }))
+                    }
+                    style={inp}
+                  />
+                </div>
+                <div>
+                  <label style={lbl}>Bank name</label>
+                  <input
+                    placeholder="e.g. NMB Bank"
+                    value={bank.bank}
+                    onChange={(e) =>
+                      setBank((p) => ({ ...p, bank: e.target.value }))
+                    }
+                    style={inp}
+                  />
+                </div>
+                <div>
+                  <label style={lbl}>Transfer date</label>
+                  <input
+                    type="date"
+                    value={bank.date}
+                    onChange={(e) =>
+                      setBank((p) => ({ ...p, date: e.target.value }))
+                    }
+                    style={inp}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {manualMethod && (
+              <button
+                onClick={handleManual}
+                disabled={!canSubmitManual || submitting}
+                style={{
+                  width: "100%",
+                  padding: "13px",
+                  borderRadius: 12,
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor:
+                    canSubmitManual && !submitting ? "pointer" : "not-allowed",
+                  background: canSubmitManual
+                    ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+                    : "#e2e8f0",
+                  color: canSubmitManual ? "#fff" : "#94a3b8",
+                }}
+              >
+                {submitting
+                  ? "Processing…"
+                  : `Pay Rs ${(booking?.totalPrice || 0).toLocaleString()} manually`}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -713,7 +689,7 @@ export default function Payment() {
             zIndex: 9999,
             padding: "12px 20px",
             borderRadius: 12,
-            background: toast.type === "success" ? "#059669" : "#dc2626",
+            background: toast.type === "error" ? "#dc2626" : "#059669",
             color: "#fff",
             fontSize: 13,
             fontWeight: 600,
@@ -729,15 +705,16 @@ export default function Payment() {
 
 const lbl = {
   display: "block",
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 700,
   color: "#64748b",
-  marginBottom: 5,
+  marginBottom: 4,
+  textTransform: "uppercase",
 };
 const inp = {
   width: "100%",
-  padding: "10px 12px",
-  borderRadius: 10,
+  padding: "9px 12px",
+  borderRadius: 8,
   border: "1px solid #dde3ec",
   fontSize: 13,
   color: "#0f172a",

@@ -26,6 +26,13 @@ function fmtDate(d) {
 }
 
 const STATUS_STYLE = {
+  PendingPayment: {
+    bg: "#eff6ff",
+    color: "#1d4ed8",
+    dot: "#3b82f6",
+    border: "#bfdbfe",
+    label: "Pay now",
+  },
   PendingDriver: {
     bg: "#fffbeb",
     color: "#b45309",
@@ -91,6 +98,58 @@ function StatusBadge({ status }) {
 function BookingActions({ booking, onCancel, navigate }) {
   const id = booking._id || booking.id;
 
+  // Self-drive: waiting for payment → show pay button directly
+  if (booking.status === "PendingPayment") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <button
+          onClick={() => navigate(`/payment/${id}`)}
+          style={{
+            padding: "11px 18px",
+            borderRadius: 9,
+            border: "none",
+            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="1" y="4" width="22" height="16" rx="2" />
+            <line x1="1" y1="10" x2="23" y2="10" />
+          </svg>
+          Pay Rs {(booking.totalPrice || 0).toLocaleString()} to confirm
+        </button>
+        <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
+          Self-drive ·{" "}
+          {booking.pickupType === "delivery"
+            ? `📦 Delivery to: ${booking.pickupLocation || "your address"}`
+            : "🏢 You collect the vehicle"}
+        </p>
+        <button
+          onClick={() => onCancel(id)}
+          style={actionBtn("#dc2626", "#fff1f2", "#fca5a5")}
+        >
+          Cancel booking
+        </button>
+      </div>
+    );
+  }
+
+  // With-driver: waiting for driver to accept
   if (booking.status === "PendingDriver") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -126,6 +185,7 @@ function BookingActions({ booking, onCancel, navigate }) {
     );
   }
 
+  // With-driver: driver confirmed, now pay
   if (booking.status === "Confirmed") {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -161,7 +221,7 @@ function BookingActions({ booking, onCancel, navigate }) {
           Pay Rs {(booking.totalPrice || 0).toLocaleString()} to activate
         </button>
         <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
-          Pay now to activate your trip instantly
+          Driver confirmed — pay now to start your trip
         </p>
       </div>
     );
@@ -208,7 +268,8 @@ function actionBtn(color, bg, border) {
 
 function BookingCard({ booking, onCancel, navigate }) {
   const [open, setOpen] = useState(false);
-  const needsPayment = booking.status === "Confirmed";
+  const needsPayment = ["PendingPayment", "Confirmed"].includes(booking.status);
+  const isPendingDriver = booking.status === "PendingDriver";
 
   return (
     <div
@@ -216,7 +277,7 @@ function BookingCard({ booking, onCancel, navigate }) {
         background: "#fff",
         borderRadius: 14,
         overflow: "hidden",
-        border: `1.5px solid ${needsPayment ? "#6366f1" : booking.status === "PendingDriver" ? "#fde68a" : "#f1f5f9"}`,
+        border: `1.5px solid ${needsPayment ? "#6366f1" : isPendingDriver ? "#fde68a" : "#f1f5f9"}`,
         transition: "box-shadow 0.2s",
       }}
       onMouseEnter={(e) =>
@@ -225,7 +286,13 @@ function BookingCard({ booking, onCancel, navigate }) {
       onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "")}
     >
       {needsPayment && (
-        <div style={{ background: "#6366f1", padding: "5px 16px" }}>
+        <div
+          style={{
+            background:
+              booking.status === "PendingPayment" ? "#3b82f6" : "#6366f1",
+            padding: "5px 16px",
+          }}
+        >
           <span
             style={{
               fontSize: 11,
@@ -234,7 +301,9 @@ function BookingCard({ booking, onCancel, navigate }) {
               letterSpacing: "0.04em",
             }}
           >
-            ACTION REQUIRED — pay to activate your trip
+            {booking.status === "PendingPayment"
+              ? "ACTION REQUIRED — pay to confirm your self-drive booking"
+              : "ACTION REQUIRED — driver confirmed, pay to activate"}
           </span>
         </div>
       )}
@@ -300,8 +369,11 @@ function BookingCard({ booking, onCancel, navigate }) {
             </p>
             <p style={{ color: "#64748b", fontSize: 12, margin: 0 }}>
               Rs {(booking.totalPrice || 0).toLocaleString()}
-              {/* Only show driver name if one was actually assigned — no "Driver pending" text */}
-              {booking.driver ? ` · ${booking.driver.name}` : ""}
+              {booking.requiresDriver === false
+                ? " · Self-drive"
+                : booking.driver
+                  ? ` · ${booking.driver.name}`
+                  : " · Driver pending"}
             </p>
           </div>
         </div>
@@ -374,7 +446,22 @@ function BookingCard({ booking, onCancel, navigate }) {
                 label: "Total",
                 value: `Rs ${(booking.totalPrice || 0).toLocaleString()}`,
               },
-              { label: "Driver", value: booking.driver?.name || "No driver" },
+              {
+                label: "Mode",
+                value:
+                  booking.requiresDriver === false
+                    ? "Self-drive"
+                    : "With driver",
+              },
+              {
+                label: "Pickup",
+                value:
+                  booking.requiresDriver === false
+                    ? booking.pickupType === "delivery"
+                      ? `Delivery → ${booking.pickupLocation || "address"}`
+                      : "Self pickup"
+                    : booking.driver?.name || "Awaiting driver",
+              },
               { label: "Payment", value: booking.paymentStatus || "Unpaid" },
             ].map(({ label, value }) => (
               <div
@@ -498,7 +585,7 @@ const TABS = [
   {
     key: "pending",
     label: "Pending",
-    statuses: ["PendingDriver", "Confirmed"],
+    statuses: ["PendingPayment", "PendingDriver", "Confirmed"],
   },
   { key: "active", label: "Active", statuses: ["Active"] },
   { key: "completed", label: "Completed", statuses: ["Completed"] },
@@ -560,7 +647,7 @@ export default function Customer() {
   );
   const needsAction = bookings.filter((b) => b.status === "Confirmed").length;
   const pendingCount = bookings.filter((b) =>
-    ["PendingDriver", "Confirmed"].includes(b.status),
+    ["PendingPayment", "PendingDriver", "Confirmed"].includes(b.status),
   ).length;
   const activeCount = bookings.filter((b) => b.status === "Active").length;
 

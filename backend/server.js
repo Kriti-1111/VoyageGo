@@ -9,6 +9,7 @@ import bookingRoutes from "./routes/bookingRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/drivers", driverRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/customers", customerRoutes);
+app.use("/api/pay", paymentRoutes);
 // ── 4. Health / test routes ───────────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.json({
