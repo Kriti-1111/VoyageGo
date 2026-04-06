@@ -124,6 +124,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/payment/esewa/return" element={<EsewaReturn />} />
+
         <Route
           path="/payment/:bookingId"
           element={
@@ -134,10 +137,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* ── Payment gateway returns — public routes, gateway redirects here ── */}
-        <Route path="/payment/esewa/return" element={<EsewaReturn />} />
-        <Route path="/payment/esewa/failure" element={<EsewaReturn />} />
 
         {/* ── Auth ── */}
         <Route

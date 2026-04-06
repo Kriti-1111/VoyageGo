@@ -22,22 +22,6 @@ function fmtDate(d) {
   });
 }
 
-// eSewa v2: must POST a form (not a redirect) to the eSewa URL
-function submitEsewaForm({ url, params }) {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = url;
-  Object.entries(params).forEach(([key, value]) => {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = key;
-    input.value = value;
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
-}
-
 export default function Payment() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -46,19 +30,9 @@ export default function Payment() {
   const [booking, setBooking] = useState(null);
   const [loadingB, setLoadingB] = useState(true);
   const [bookingErr, setBookingErr] = useState(null);
-  const [paying, setPaying] = useState(null); // "esewa" | null
+  const [paying, setPaying] = useState(false);
+  const [demoPaying, setDemoPaying] = useState(false);
   const [toast, setToast] = useState(null);
-
-  // Manual payment fallback
-  const [manualMethod, setManualMethod] = useState(null);
-  const [card, setCard] = useState({
-    number: "",
-    expiry: "",
-    cvv: "",
-    name: "",
-  });
-  const [bank, setBank] = useState({ reference: "", bank: "", date: "" });
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -77,29 +51,51 @@ export default function Payment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
-  // ── eSewa ──────────────────────────────────────────────────────────────────
+  // ── eSewa ─────────────────────────────────────────────────────────────────
   async function handleEsewa() {
-    setPaying("esewa");
+    setPaying(true);
     try {
       const { data } = await axios.post(
         `${API}/api/pay/esewa/initiate`,
         { bookingId },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
-      // Save token so EsewaReturn can verify after the page redirect
-      sessionStorage.setItem("token", getToken());
-      submitEsewaForm(data);
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = data.gateway_url;
+
+      const fields = {
+        amount: data.amount,
+        tax_amount: data.tax_amount,
+        total_amount: data.total_amount,
+        transaction_uuid: data.transaction_uuid,
+        product_code: data.product_code,
+        product_service_charge: 0,
+        product_delivery_charge: 0,
+        success_url: data.success_url,
+        failure_url: data.failure_url,
+        signed_field_names: "total_amount,transaction_uuid,product_code",
+        signature: data.signature,
+      };
+
+      Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
     } catch (e) {
-      showToast(
-        e.response?.data?.message || "eSewa initiation failed.",
-        "error",
-      );
-      setPaying(null);
+      showToast(e.response?.data?.message || "eSewa payment failed.", "error");
+      setPaying(false);
     }
   }
 
-  // ── Demo pay — FYP fallback ────────────────────────────────────────────────
-  const [demoPaying, setDemoPaying] = useState(false);
+  // ── Demo pay ───────────────────────────────────────────────────────────────
   async function handleDemoPay() {
     setDemoPaying(true);
     try {
@@ -116,55 +112,12 @@ export default function Payment() {
     }
   }
 
-  // ── Manual fallback ─────────────────────────────────────────────────────────
-  const canSubmitManual = (() => {
-    if (!manualMethod) return false;
-    if (manualMethod === "Card")
-      return (
-        card.number.replace(/\s/g, "").length === 16 &&
-        card.expiry.length === 5 &&
-        card.cvv.length >= 3 &&
-        card.name.length > 1
-      );
-    if (manualMethod === "Bank")
-      return bank.reference && bank.bank && bank.date;
-    return false;
-  })();
-
-  async function handleManual() {
-    if (!canSubmitManual || submitting) return;
-    setSubmitting(true);
-    try {
-      await axios.post(
-        `${API}/api/bookings/${bookingId}/payment`,
-        {
-          method: manualMethod,
-          ...(manualMethod === "Card" && {
-            last4: card.number.replace(/\s/g, "").slice(-4),
-          }),
-          ...(manualMethod === "Bank" && {
-            reference: bank.reference,
-            bank: bank.bank,
-            transferDate: bank.date,
-          }),
-        },
-        { headers: { Authorization: `Bearer ${getToken()}` } },
-      );
-      navigate(
-        `/payment/success?bookingId=${bookingId}&method=${manualMethod}`,
-      );
-    } catch (e) {
-      showToast(e.response?.data?.message || "Payment failed.", "error");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   function showToast(msg, type) {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 5000);
   }
 
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loadingB)
     return (
       <div
@@ -202,11 +155,10 @@ export default function Payment() {
             textAlign: "center",
           }}
         >
-          <p style={{ fontWeight: 700, marginBottom: 4 }}>{bookingErr}</p>
+          <p style={{ fontWeight: 700, marginBottom: 12 }}>{bookingErr}</p>
           <button
             onClick={() => navigate("/customer")}
             style={{
-              marginTop: 12,
               padding: "8px 18px",
               borderRadius: 8,
               border: "none",
@@ -223,21 +175,25 @@ export default function Payment() {
       </div>
     );
 
+  const busy = paying || demoPaying;
+
   return (
     <>
-      <style>{`* { box-sizing: border-box; } @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`* { box-sizing: border-box; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div
         style={{
-          maxWidth: 560,
+          maxWidth: 520,
           margin: "0 auto",
-          padding: "32px 20px 80px",
+          padding: "40px 20px 80px",
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
         }}
       >
+        {/* Back */}
         <button onClick={() => navigate("/customer")} style={backBtn}>
-          Back to Dashboard
+          ← Back to Dashboard
         </button>
 
+        {/* Header */}
         <h1
           style={{
             margin: "0 0 4px",
@@ -248,444 +204,262 @@ export default function Payment() {
         >
           Complete payment
         </h1>
-        <p style={{ margin: "0 0 4px", fontSize: 14, color: "#64748b" }}>
+        <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b" }}>
           {booking?.vehicle?.name} · {fmtDate(booking?.startDate)} →{" "}
           {fmtDate(booking?.endDate)}
         </p>
 
-        {/* Test mode badge */}
+        {/* Order summary */}
         <div
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "#fffbeb",
-            border: "1px solid #fde68a",
-            borderRadius: 20,
-            padding: "4px 12px",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#b45309",
-            marginTop: 8,
-            marginBottom: 24,
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 14,
+            padding: "20px",
+            marginBottom: 20,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
           }}
         >
-          <span
+          <p
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#f59e0b",
+              margin: "0 0 14px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#94a3b8",
+              textTransform: "uppercase",
+              letterSpacing: "0.6px",
             }}
-          />
-          Test Payment Mode — No real money deducted
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1.6fr",
-            gap: 20,
-            alignItems: "start",
-          }}
-        >
-          {/* Order summary */}
+          >
+            Order summary
+          </p>
+          {[
+            { label: "Vehicle", value: booking?.vehicle?.name },
+            {
+              label: "Mode",
+              value:
+                booking?.requiresDriver === false
+                  ? "Self-drive"
+                  : "With driver",
+            },
+            {
+              label: "Driver",
+              value:
+                booking?.driver?.name ||
+                (booking?.requiresDriver === false ? "—" : "Awaiting"),
+            },
+            { label: "Start", value: fmtDate(booking?.startDate) },
+            { label: "End", value: fmtDate(booking?.endDate) },
+          ].map(({ label, value }) => (
+            <div
+              key={label}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 13,
+                marginBottom: 8,
+              }}
+            >
+              <span style={{ color: "#64748b" }}>{label}</span>
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                {value || "—"}
+              </span>
+            </div>
+          ))}
           <div
             style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: "18px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              borderTop: "1px solid #e2e8f0",
+              paddingTop: 12,
+              marginTop: 8,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
+              Total
+            </span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#60BB46" }}>
+              Rs {(booking?.totalPrice || 0).toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        {/* Payment options */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* ── eSewa ── */}
+          <button
+            onClick={handleEsewa}
+            disabled={busy}
+            style={{
+              width: "100%",
+              padding: "16px 18px",
+              borderRadius: 12,
+              border: "none",
+              cursor: busy ? "not-allowed" : "pointer",
+              background: busy && paying ? "#4ea336" : "#60BB46",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              opacity: busy && !paying ? 0.5 : 1,
+              transition: "background 0.15s",
+              boxShadow: busy ? "none" : "0 4px 14px rgba(96,187,70,0.35)",
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) e.currentTarget.style.background = "#4ea336";
+            }}
+            onMouseLeave={(e) => {
+              if (!busy) e.currentTarget.style.background = "#60BB46";
+            }}
+          >
+            {paying ? (
+              <>
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    border: "2.5px solid rgba(255,255,255,0.35)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Redirecting to eSewa…
+              </>
+            ) : (
+              <>
+                <span
+                  style={{
+                    background: "#fff",
+                    color: "#60BB46",
+                    fontWeight: 900,
+                    fontSize: 13,
+                    padding: "2px 7px",
+                    borderRadius: 4,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  e
+                </span>
+                Pay Rs {(booking?.totalPrice || 0).toLocaleString()} with eSewa
+              </>
+            )}
+          </button>
+
+          {/* eSewa test credentials */}
+          <div
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 9,
+              padding: "10px 14px",
             }}
           >
             <p
               style={{
-                margin: "0 0 14px",
-                fontSize: 12,
+                margin: "0 0 4px",
+                fontSize: 11,
                 fontWeight: 700,
-                color: "#94a3b8",
+                color: "#166534",
                 textTransform: "uppercase",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.4px",
               }}
             >
-              Order summary
+              eSewa test credentials
             </p>
-            {[
-              { label: "Vehicle", value: booking?.vehicle?.name },
-              {
-                label: "Driver",
-                value:
-                  booking?.driver?.name ||
-                  (booking?.requiresDriver === false
-                    ? "Self-drive"
-                    : "No driver"),
-              },
-              { label: "Start", value: fmtDate(booking?.startDate) },
-              { label: "End", value: fmtDate(booking?.endDate) },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 13,
-                  marginBottom: 8,
-                }}
-              >
-                <span style={{ color: "#64748b" }}>{label}</span>
-                <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                  {value || "—"}
-                </span>
-              </div>
-            ))}
-            <div
-              style={{
-                borderTop: "1px solid #e2e8f0",
-                paddingTop: 10,
-                marginTop: 4,
-                display: "flex",
-                justifyContent: "space-between",
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                Total
-              </span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: "#6366f1" }}>
-                Rs {(booking?.totalPrice || 0).toLocaleString()}
-              </span>
-            </div>
+            <p style={{ margin: 0, fontSize: 12, color: "#15803d" }}>
+              Number: <strong>9806800001</strong> &nbsp;·&nbsp; Password:{" "}
+              <strong>Nepal@123</strong> &nbsp;·&nbsp; OTP:{" "}
+              <strong>123456</strong>
+            </p>
           </div>
 
-          {/* Payment methods */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* ── eSewa ── */}
-            <button
-              onClick={handleEsewa}
-              disabled={!!paying}
-              style={{
-                width: "100%",
-                padding: "14px 18px",
-                borderRadius: 12,
-                border: "none",
-                cursor: paying ? "not-allowed" : "pointer",
-                background: paying === "esewa" ? "#5fbe00" : "#60bb46",
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 700,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                opacity: paying && paying !== "esewa" ? 0.5 : 1,
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (!paying) e.currentTarget.style.background = "#4fa33a";
-              }}
-              onMouseLeave={(e) => {
-                if (!paying) e.currentTarget.style.background = "#60bb46";
-              }}
-            >
-              {paying === "esewa" ? (
-                <>
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      border: "2px solid rgba(255,255,255,0.4)",
-                      borderTopColor: "#fff",
-                      borderRadius: "50%",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  />
-                  Redirecting to eSewa…
-                </>
-              ) : (
-                <>
-                  <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-                    <rect
-                      width="40"
-                      height="40"
-                      rx="8"
-                      fill="white"
-                      fillOpacity=".18"
-                    />
-                    <text
-                      x="50%"
-                      y="56%"
-                      dominantBaseline="middle"
-                      textAnchor="middle"
-                      fontSize="17"
-                      fontWeight="800"
-                      fill="white"
-                    >
-                      e
-                    </text>
-                  </svg>
-                  Pay with eSewa
-                </>
-              )}
-            </button>
-
-            {/* Demo Pay — FYP fallback when eSewa sandbox is unavailable */}
-            <button
-              onClick={handleDemoPay}
-              disabled={!!paying || demoPaying}
-              style={{
-                width: "100%",
-                padding: "11px",
-                borderRadius: 10,
-                border: "1.5px dashed #94a3b8",
-                background: "#f8fafc",
-                color: "#475569",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: paying || demoPaying ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                opacity: paying ? 0.5 : 1,
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (!paying && !demoPaying)
-                  e.currentTarget.style.background = "#f1f5f9";
-              }}
-              onMouseLeave={(e) => {
-                if (!paying && !demoPaying)
-                  e.currentTarget.style.background = "#f8fafc";
-              }}
-            >
-              {demoPaying ? (
-                <>
-                  <span
-                    style={{
-                      width: 13,
-                      height: 13,
-                      border: "2px solid #94a3b8",
-                      borderTopColor: "#475569",
-                      borderRadius: "50%",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  />
-                  Processing…
-                </>
-              ) : (
-                <>🔧 Demo Pay — simulate eSewa (FYP use only)</>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-              <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>
-                or pay manually
-              </span>
-              <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-            </div>
-
-            {/* Manual method selector */}
-            <div style={{ display: "flex", gap: 8 }}>
-              {[
-                { key: "Card", label: "Card" },
-                { key: "Bank", label: "Bank Transfer" },
-              ].map((m) => (
-                <button
-                  key={m.key}
-                  onClick={() =>
-                    setManualMethod(m.key === manualMethod ? null : m.key)
-                  }
-                  style={{
-                    flex: 1,
-                    padding: "9px",
-                    borderRadius: 9,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    border: `1.5px solid ${manualMethod === m.key ? "#6366f1" : "#e2e8f0"}`,
-                    background: manualMethod === m.key ? "#eef2ff" : "#fff",
-                    color: manualMethod === m.key ? "#6366f1" : "#64748b",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Card form */}
-            {manualMethod === "Card" && (
-              <div
-                style={{
-                  background: "#f8fafc",
-                  borderRadius: 10,
-                  padding: "14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <div>
-                  <label style={lbl}>Card number</label>
-                  <input
-                    maxLength={19}
-                    placeholder="0000 0000 0000 0000"
-                    value={card.number}
-                    onChange={(e) => {
-                      const raw = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 16);
-                      setCard((p) => ({
-                        ...p,
-                        number: raw.replace(/(.{4})/g, "$1 ").trim(),
-                      }));
-                    }}
-                    style={inp}
-                  />
-                </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                  }}
-                >
-                  <div>
-                    <label style={lbl}>Expiry</label>
-                    <input
-                      maxLength={5}
-                      placeholder="MM/YY"
-                      value={card.expiry}
-                      onChange={(e) => {
-                        const raw = e.target.value
-                          .replace(/\D/g, "")
-                          .slice(0, 4);
-                        setCard((p) => ({
-                          ...p,
-                          expiry:
-                            raw.length > 2
-                              ? raw.slice(0, 2) + "/" + raw.slice(2)
-                              : raw,
-                        }));
-                      }}
-                      style={inp}
-                    />
-                  </div>
-                  <div>
-                    <label style={lbl}>CVV</label>
-                    <input
-                      maxLength={4}
-                      placeholder="123"
-                      type="password"
-                      value={card.cvv}
-                      onChange={(e) =>
-                        setCard((p) => ({
-                          ...p,
-                          cvv: e.target.value.replace(/\D/g, "").slice(0, 4),
-                        }))
-                      }
-                      style={inp}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label style={lbl}>Name on card</label>
-                  <input
-                    placeholder="Full name"
-                    value={card.name}
-                    onChange={(e) =>
-                      setCard((p) => ({ ...p, name: e.target.value }))
-                    }
-                    style={inp}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Bank form */}
-            {manualMethod === "Bank" && (
-              <div
-                style={{
-                  background: "#f8fafc",
-                  borderRadius: 10,
-                  padding: "14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                <div>
-                  <label style={lbl}>Transfer reference</label>
-                  <input
-                    placeholder="e.g. TRN-20260405-001"
-                    value={bank.reference}
-                    onChange={(e) =>
-                      setBank((p) => ({ ...p, reference: e.target.value }))
-                    }
-                    style={inp}
-                  />
-                </div>
-                <div>
-                  <label style={lbl}>Bank name</label>
-                  <input
-                    placeholder="e.g. NMB Bank"
-                    value={bank.bank}
-                    onChange={(e) =>
-                      setBank((p) => ({ ...p, bank: e.target.value }))
-                    }
-                    style={inp}
-                  />
-                </div>
-                <div>
-                  <label style={lbl}>Transfer date</label>
-                  <input
-                    type="date"
-                    value={bank.date}
-                    onChange={(e) =>
-                      setBank((p) => ({ ...p, date: e.target.value }))
-                    }
-                    style={inp}
-                  />
-                </div>
-              </div>
-            )}
-
-            {manualMethod && (
-              <button
-                onClick={handleManual}
-                disabled={!canSubmitManual || submitting}
-                style={{
-                  width: "100%",
-                  padding: "13px",
-                  borderRadius: 12,
-                  border: "none",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor:
-                    canSubmitManual && !submitting ? "pointer" : "not-allowed",
-                  background: canSubmitManual
-                    ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
-                    : "#e2e8f0",
-                  color: canSubmitManual ? "#fff" : "#94a3b8",
-                }}
-              >
-                {submitting
-                  ? "Processing…"
-                  : `Pay Rs ${(booking?.totalPrice || 0).toLocaleString()} manually`}
-              </button>
-            )}
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
+              OR
+            </span>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
           </div>
+
+          {/* ── Demo Pay ── */}
+          <button
+            onClick={handleDemoPay}
+            disabled={busy}
+            style={{
+              width: "100%",
+              padding: "13px 18px",
+              borderRadius: 12,
+              border: "1.5px dashed #94a3b8",
+              background: "#f8fafc",
+              cursor: busy ? "not-allowed" : "pointer",
+              color: "#475569",
+              fontSize: 13,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              opacity: busy && !demoPaying ? 0.5 : 1,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) {
+                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.borderColor = "#64748b";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!busy) {
+                e.currentTarget.style.background = "#f8fafc";
+                e.currentTarget.style.borderColor = "#94a3b8";
+              }
+            }}
+          >
+            {demoPaying ? (
+              <>
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid #94a3b8",
+                    borderTopColor: "#475569",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Processing…
+              </>
+            ) : (
+              <>🔧 Demo Pay — simulate eSewa (FYP use only)</>
+            )}
+          </button>
+
+          <p
+            style={{
+              margin: "0",
+              fontSize: 11,
+              color: "#94a3b8",
+              textAlign: "center",
+            }}
+          >
+            Demo Pay bypasses the gateway and directly activates your booking —
+            use if eSewa sandbox is unavailable.
+          </p>
         </div>
       </div>
 
+      {/* Toast */}
       {toast && (
         <div
           style={{
             position: "fixed",
-            bottom: 20,
-            right: 20,
+            bottom: 24,
+            right: 24,
             zIndex: 9999,
             padding: "12px 20px",
             borderRadius: 12,
@@ -703,28 +477,9 @@ export default function Payment() {
   );
 }
 
-const lbl = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 700,
-  color: "#64748b",
-  marginBottom: 4,
-  textTransform: "uppercase",
-};
-const inp = {
-  width: "100%",
-  padding: "9px 12px",
-  borderRadius: 8,
-  border: "1px solid #dde3ec",
-  fontSize: 13,
-  color: "#0f172a",
-  outline: "none",
-  background: "#fff",
-};
 const backBtn = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 6,
   padding: "8px 14px",
   borderRadius: 8,
   border: "1px solid #e2e8f0",
