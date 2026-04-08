@@ -20,10 +20,10 @@ const STATUS_CFG = {
     label: "New Request",
   },
   Confirmed: {
-    bg: "#eff6ff",
-    color: "#1d4ed8",
+    bg: "#FFF7ED",
+    color: "#EA580C",
     dot: "#3b82f6",
-    border: "#bfdbfe",
+    border: "#FDBA74",
     label: "Confirmed",
   },
   Active: {
@@ -113,7 +113,7 @@ function StatIcon({ type }) {
     );
   if (type === "done")
     return (
-      <svg {...p} stroke="#6366f1">
+      <svg {...p} stroke="#F97316">
         <polyline points="20 6 9 17 4 12" />
       </svg>
     );
@@ -216,8 +216,8 @@ function MyVehicles({ token }) {
             marginLeft: 8,
             fontSize: 12,
             fontWeight: 600,
-            color: "#6366f1",
-            background: "#eef2ff",
+            color: "#F97316",
+            background: "#FFF7ED",
             padding: "2px 8px",
             borderRadius: 20,
           }}
@@ -391,7 +391,7 @@ export default function Driver() {
     {
       label: "Completed",
       value: bookings.filter((b) => b.status === "Completed").length,
-      color: "#6366f1",
+      color: "#F97316",
       type: "done",
     },
     {
@@ -427,7 +427,7 @@ export default function Driver() {
             width: "220px",
             height: "220px",
             borderRadius: "50%",
-            background: "rgba(99,102,241,0.1)",
+            background: "rgba(30,58,138,0.1)",
           }}
         />
         <div
@@ -543,8 +543,8 @@ export default function Driver() {
                       : s.type === "active"
                         ? "#f0fdf4"
                         : s.type === "done"
-                          ? "#eef2ff"
-                          : "#eff6ff",
+                          ? "#FFF7ED"
+                          : "#FFF7ED",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -672,7 +672,7 @@ export default function Driver() {
                 width: "32px",
                 height: "32px",
                 border: "3px solid #e2e8f0",
-                borderTopColor: "#6366f1",
+                borderTopColor: "#F97316",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
                 margin: "0 auto 12px",
@@ -779,12 +779,12 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
               width: "40px",
               height: "40px",
               borderRadius: "10px",
-              background: "linear-gradient(135deg,#e0e7ff,#f5f3ff)",
+              background: "linear-gradient(135deg,#FED7AA,#f5f3ff)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontWeight: "700",
-              color: "#6366f1",
+              color: "#F97316",
               fontSize: "15px",
               flexShrink: 0,
             }}
@@ -917,7 +917,7 @@ function BookingCard({ booking: b, isExpanded, onToggle, onRespond }) {
                     href={`tel:${b.customer.phone}`}
                     style={{
                       fontSize: "13px",
-                      color: "#6366f1",
+                      color: "#F97316",
                       textDecoration: "none",
                       fontWeight: "500",
                     }}

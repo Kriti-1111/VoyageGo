@@ -78,7 +78,7 @@ export default function Register() {
         style={{
           flex: "0 0 380px",
           background:
-            "linear-gradient(155deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%)",
+            "linear-gradient(155deg,#0f172a 0%,#F97316 50%,#EA580C 100%)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
@@ -95,7 +95,7 @@ export default function Register() {
             width: "240px",
             height: "240px",
             borderRadius: "50%",
-            background: "rgba(99,102,241,0.2)",
+            background: "rgba(249,115,22,0.2)",
           }}
         />
         <div
@@ -106,7 +106,7 @@ export default function Register() {
             width: "200px",
             height: "200px",
             borderRadius: "50%",
-            background: "rgba(139,92,246,0.15)",
+            background: "rgba(56,189,248,0.12)",
           }}
         />
 
@@ -124,7 +124,7 @@ export default function Register() {
               style={{
                 width: "40px",
                 height: "40px",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 borderRadius: "12px",
                 display: "flex",
                 alignItems: "center",
@@ -293,8 +293,8 @@ export default function Register() {
                     style={{
                       padding: "12px 14px",
                       borderRadius: "10px",
-                      border: `2px solid ${form.role === r.value ? "#6366f1" : "#e2e8f0"}`,
-                      background: form.role === r.value ? "#eef2ff" : "#fff",
+                      border: `2px solid ${form.role === r.value ? "#F97316" : "#e2e8f0"}`,
+                      background: form.role === r.value ? "#FFF7ED" : "#fff",
                       cursor: "pointer",
                       textAlign: "left",
                       transition: "all 0.15s",
@@ -306,7 +306,7 @@ export default function Register() {
                         height: 28,
                         borderRadius: 7,
                         background:
-                          form.role === r.value ? "#6366f1" : "#f1f5f9",
+                          form.role === r.value ? "#F97316" : "#f1f5f9",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -349,7 +349,7 @@ export default function Register() {
                       style={{
                         fontSize: "13px",
                         fontWeight: "700",
-                        color: form.role === r.value ? "#6366f1" : "#0f172a",
+                        color: form.role === r.value ? "#F97316" : "#0f172a",
                       }}
                     >
                       {r.label}
@@ -502,7 +502,7 @@ export default function Register() {
                 padding: "13px",
                 borderRadius: "10px",
                 border: "none",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 color: "#fff",
                 fontSize: "15px",
                 fontWeight: "700",
@@ -528,7 +528,7 @@ export default function Register() {
             <Link
               to="/login"
               style={{
-                color: "#6366f1",
+                color: "#F97316",
                 fontWeight: "700",
                 textDecoration: "none",
               }}
@@ -565,8 +565,8 @@ const inputStyle = {
   fontFamily: "inherit",
 };
 const focusStyle = (e) => {
-  e.target.style.borderColor = "#6366f1";
-  e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.12)";
+  e.target.style.borderColor = "#F97316";
+  e.target.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.12)";
 };
 const blurStyle = (e) => {
   e.target.style.borderColor = "#e2e8f0";

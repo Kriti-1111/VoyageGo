@@ -238,12 +238,24 @@ export default function ReturnVehicle() {
           }}
         >
           <p style={{ fontWeight: 700, marginBottom: 4 }}>
-            {bookingErr || "This trip is not currently active."}
+            {booking && booking.status !== "Active"
+              ? `This booking is ${booking.status} — only Active trips can be returned.`
+              : "Could not load booking. Please check your dashboard."}
+          </p>
+          <p
+            style={{
+              fontSize: 12,
+              color: "#94a3b8",
+              marginTop: 6,
+              marginBottom: 0,
+            }}
+          >
+            If you believe this is an error, please contact support.
           </p>
           <button
             onClick={() => navigate("/customer")}
             style={{
-              marginTop: 12,
+              marginTop: 14,
               padding: "8px 18px",
               borderRadius: 8,
               border: "none",
@@ -422,7 +434,7 @@ export default function ReturnVehicle() {
             padding: "13px",
             borderRadius: 12,
             border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            background: "linear-gradient(135deg,#F97316,#EA580C)",
             color: "#fff",
             fontSize: 14,
             fontWeight: 700,
@@ -709,6 +721,60 @@ export default function ReturnVehicle() {
             </p>
           </div>
 
+          {/* Condition report — optional but encouraged before returning */}
+          <div
+            style={{
+              background: "#FFF7ED",
+              border: "1.5px solid #FED7AA",
+              borderRadius: 12,
+              padding: "14px 16px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>📋</span>
+              <div style={{ flex: 1 }}>
+                <p
+                  style={{
+                    margin: "0 0 4px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#92400e",
+                  }}
+                >
+                  Report vehicle condition before returning
+                </p>
+                <p
+                  style={{
+                    margin: "0 0 10px",
+                    fontSize: 12,
+                    color: "#b45309",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Documenting scratches, damage or issues protects you from
+                  being held responsible for pre-existing problems.
+                </p>
+                <button
+                  onClick={() =>
+                    navigate(`/booking/${bookingId}/condition-report`)
+                  }
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 9,
+                    border: "1.5px solid #FDBA74",
+                    background: "#fff",
+                    color: "#EA580C",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  📷 Report condition (optional)
+                </button>
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={handleReturn}
             disabled={submitting}
@@ -720,7 +786,7 @@ export default function ReturnVehicle() {
               fontSize: 15,
               fontWeight: 700,
               cursor: submitting ? "not-allowed" : "pointer",
-              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              background: "linear-gradient(135deg,#F97316,#EA580C)",
               color: "#fff",
               transition: "opacity 0.15s",
               opacity: submitting ? 0.7 : 1,

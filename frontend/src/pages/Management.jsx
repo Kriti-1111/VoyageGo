@@ -23,8 +23,8 @@ import {
 import { ENDPOINTS, BASE_URL } from "../services/api.js";
 
 const ROLE_CONFIG = {
-  OWNER: { label: "Owner", color: "#7c3aed", bg: "#f5f3ff" },
-  ADMIN: { label: "Admin", color: "#6366f1", bg: "#eef2ff" },
+  OWNER: { label: "Owner", color: "#EA580C", bg: "#f5f3ff" },
+  ADMIN: { label: "Admin", color: "#F97316", bg: "#FFF7ED" },
   STAFF: { label: "Staff", color: "#0891b2", bg: "#ecfeff" },
 };
 
@@ -179,7 +179,7 @@ function Spinner() {
           width: "28px",
           height: "28px",
           border: "3px solid #e2e8f0",
-          borderTopColor: "#6366f1",
+          borderTopColor: "#F97316",
           borderRadius: "50%",
           animation: "spin 0.8s linear infinite",
           margin: "0 auto 10px",
@@ -568,10 +568,13 @@ function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
           },
           {
             title: "Total Revenue",
-            value: "Rs 0",
-            subtitle: "connect payment gateway",
+            value: `Rs ${bookings
+              .filter((b) => b.paymentStatus === "Paid")
+              .reduce((s, b) => s + (b.totalPrice || 0), 0)
+              .toLocaleString()}`,
+            subtitle: `${bookings.filter((b) => b.paymentStatus === "Paid").length} paid bookings`,
             icon: <FaMoneyBillWave />,
-            accent: "#6366f1",
+            accent: "#F97316",
           },
         ];
   return (
@@ -802,8 +805,8 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                     borderRadius: 10,
                     cursor: "pointer",
                     marginBottom: 6,
-                    border: `1.5px solid ${selected ? "#6366f1" : "#e2e8f0"}`,
-                    background: selected ? "#eef2ff" : "#fff",
+                    border: `1.5px solid ${selected ? "#F97316" : "#e2e8f0"}`,
+                    background: selected ? "#FFF7ED" : "#fff",
                     transition: "all 0.15s",
                   }}
                 >
@@ -812,7 +815,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                       width: 36,
                       height: 36,
                       borderRadius: "50%",
-                      background: selected ? "#6366f1" : "#e2e8f0",
+                      background: selected ? "#F97316" : "#e2e8f0",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -830,7 +833,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                         margin: 0,
                         fontSize: 13,
                         fontWeight: 700,
-                        color: selected ? "#4f46e5" : "#0f172a",
+                        color: selected ? "#F97316" : "#0f172a",
                       }}
                     >
                       {d.name}
@@ -846,8 +849,8 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                       width: 20,
                       height: 20,
                       borderRadius: "50%",
-                      border: `2px solid ${selected ? "#6366f1" : "#cbd5e1"}`,
-                      background: selected ? "#6366f1" : "transparent",
+                      border: `2px solid ${selected ? "#F97316" : "#cbd5e1"}`,
+                      background: selected ? "#F97316" : "transparent",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -911,7 +914,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
                 fontSize: 13,
                 fontWeight: 600,
                 color: "#fff",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.7 : 1,
               }}
@@ -1015,10 +1018,10 @@ function ImagePicker({ value, onChange }) {
           style={{
             width: "100%",
             height: 90,
-            border: "1.5px dashed #c7d2fe",
+            border: "1.5px dashed #FDBA74",
             borderRadius: 10,
             background: "#f8faff",
-            color: "#6366f1",
+            color: "#F97316",
             fontSize: 13,
             fontWeight: 600,
             cursor: "pointer",
@@ -1029,12 +1032,12 @@ function ImagePicker({ value, onChange }) {
             transition: "all 0.15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#eef2ff";
-            e.currentTarget.style.borderColor = "#6366f1";
+            e.currentTarget.style.background = "#FFF7ED";
+            e.currentTarget.style.borderColor = "#F97316";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "#f8faff";
-            e.currentTarget.style.borderColor = "#c7d2fe";
+            e.currentTarget.style.borderColor = "#FDBA74";
           }}
         >
           <FaCamera style={{ fontSize: 16 }} /> Upload vehicle photo
@@ -1206,7 +1209,7 @@ function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
               onClick={() => inputRef.current?.click()}
               style={{
                 height: 160,
-                border: "2px dashed #c7d2fe",
+                border: "2px dashed #FDBA74",
                 borderRadius: 12,
                 background: "#f8faff",
                 display: "flex",
@@ -1219,16 +1222,16 @@ function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
                 transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#eef2ff";
-                e.currentTarget.style.borderColor = "#6366f1";
+                e.currentTarget.style.background = "#FFF7ED";
+                e.currentTarget.style.borderColor = "#F97316";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "#f8faff";
-                e.currentTarget.style.borderColor = "#c7d2fe";
+                e.currentTarget.style.borderColor = "#FDBA74";
               }}
             >
-              <FaCamera style={{ fontSize: 24, color: "#6366f1" }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#6366f1" }}>
+              <FaCamera style={{ fontSize: 24, color: "#F97316" }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#F97316" }}>
                 Click to upload photo
               </span>
               <span style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -1293,7 +1296,7 @@ function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
               background:
                 !preview || saving
                   ? "#e2e8f0"
-                  : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                  : "linear-gradient(135deg,#F97316,#EA580C)",
               cursor: !preview || saving ? "not-allowed" : "pointer",
               opacity: saving ? 0.7 : 1,
             }}
@@ -1454,7 +1457,7 @@ function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
                   }
                   placeholder={ph}
                   style={inp}
-                  onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                  onFocus={(e) => (e.target.style.borderColor = "#F97316")}
                   onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
                 />
               </div>
@@ -1510,7 +1513,7 @@ function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
                 placeholder="Optional vehicle description…"
                 rows={2}
                 style={{ ...inp, resize: "none", fontFamily: "inherit" }}
-                onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                onFocus={(e) => (e.target.style.borderColor = "#F97316")}
                 onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
               />
             </div>
@@ -1553,7 +1556,7 @@ function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
               fontSize: 13,
               fontWeight: 600,
               color: "#fff",
-              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              background: "linear-gradient(135deg,#F97316,#EA580C)",
               cursor: saving ? "not-allowed" : "pointer",
               opacity: saving ? 0.7 : 1,
             }}
@@ -1698,7 +1701,7 @@ function VehiclesPanel({ isAdmin }) {
           <button
             onClick={() => setShowForm(!showForm)}
             style={{
-              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              background: "linear-gradient(135deg,#F97316,#EA580C)",
               color: "#fff",
               border: "none",
               borderRadius: "10px",
@@ -1770,7 +1773,7 @@ function VehiclesPanel({ isAdmin }) {
                     background: "#f8fafc",
                     boxSizing: "border-box",
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = "#6366f1")}
+                  onFocus={(e) => (e.target.style.borderColor = "#F97316")}
                   onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
                 />
               </div>
@@ -1829,6 +1832,44 @@ function VehiclesPanel({ isAdmin }) {
               </div>
             ))}
 
+            {/* Description — spans full width */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  color: "#64748b",
+                  display: "block",
+                  marginBottom: "4px",
+                  textTransform: "uppercase",
+                }}
+              >
+                Description
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, description: e.target.value }))
+                }
+                placeholder="e.g. Comfortable Toyota HiAce suitable for group travel across Nepal…"
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  outline: "none",
+                  background: "#f8fafc",
+                  boxSizing: "border-box",
+                  resize: "none",
+                  fontFamily: "inherit",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#F97316")}
+                onBlur={(e) => (e.target.style.borderColor = "#e2e8f0")}
+              />
+            </div>
+
             {/* Image upload — spans full width */}
             <div style={{ gridColumn: "1 / -1" }}>
               <label
@@ -1876,7 +1917,7 @@ function VehiclesPanel({ isAdmin }) {
                 fontSize: "13px",
                 fontWeight: "600",
                 color: "#fff",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 cursor: "pointer",
                 opacity: submitting ? 0.7 : 1,
               }}
@@ -1916,7 +1957,7 @@ function VehiclesPanel({ isAdmin }) {
                 <div
                   style={{
                     height: "130px",
-                    background: "linear-gradient(135deg,#e0e7ff,#f5f3ff)",
+                    background: "linear-gradient(135deg,#FED7AA,#f5f3ff)",
                     borderRadius: "10px",
                     overflow: "hidden",
                     marginBottom: "12px",
@@ -1941,7 +1982,7 @@ function VehiclesPanel({ isAdmin }) {
                       height="36"
                       viewBox="0 0 24 24"
                       fill="none"
-                      stroke="#c7d2fe"
+                      stroke="#FDBA74"
                       strokeWidth="1.5"
                     >
                       <rect x="1" y="3" width="15" height="13" rx="2" />
@@ -2018,7 +2059,7 @@ function VehiclesPanel({ isAdmin }) {
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: driverCount > 0 ? "#6366f1" : "#f59e0b",
+                        color: driverCount > 0 ? "#F97316" : "#f59e0b",
                       }}
                     >
                       {driverCount > 0
@@ -2077,7 +2118,7 @@ function VehiclesPanel({ isAdmin }) {
                                   height: 22,
                                   borderRadius: "50%",
                                   background:
-                                    "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                                    "linear-gradient(135deg,#F97316,#EA580C)",
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
@@ -2115,7 +2156,7 @@ function VehiclesPanel({ isAdmin }) {
                                 <span
                                   style={{
                                     fontSize: 10,
-                                    color: "#6366f1",
+                                    color: "#F97316",
                                     fontWeight: 600,
                                   }}
                                 >
@@ -2176,12 +2217,12 @@ function VehiclesPanel({ isAdmin }) {
                         style={{
                           flex: 1,
                           padding: "7px",
-                          border: "1px solid #c7d2fe",
+                          border: "1px solid #FDBA74",
                           borderRadius: "7px",
                           fontSize: "12px",
                           fontWeight: "600",
-                          color: "#6366f1",
-                          background: "#eef2ff",
+                          color: "#F97316",
+                          background: "#FFF7ED",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
@@ -2189,12 +2230,12 @@ function VehiclesPanel({ isAdmin }) {
                           gap: 5,
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#6366f1";
+                          e.currentTarget.style.background = "#F97316";
                           e.currentTarget.style.color = "#fff";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "#eef2ff";
-                          e.currentTarget.style.color = "#6366f1";
+                          e.currentTarget.style.background = "#FFF7ED";
+                          e.currentTarget.style.color = "#F97316";
                         }}
                       >
                         <FaUserPlus style={{ fontSize: 10 }} /> Assign Drivers
@@ -2446,12 +2487,12 @@ function DriversPanel({ isAdmin }) {
                 onClick={() => setFilter(f.key)}
                 style={{
                   padding: "6px 14px",
-                  border: `1px solid ${active ? "#6366f1" : f.alert ? "#f59e0b" : "#e2e8f0"}`,
+                  border: `1px solid ${active ? "#F97316" : f.alert ? "#f59e0b" : "#e2e8f0"}`,
                   borderRadius: "20px",
                   fontSize: "12px",
                   fontWeight: "600",
                   cursor: "pointer",
-                  background: active ? "#6366f1" : f.alert ? "#fffbeb" : "#fff",
+                  background: active ? "#F97316" : f.alert ? "#fffbeb" : "#fff",
                   color: active ? "#fff" : f.alert ? "#b45309" : "#64748b",
                 }}
               >
@@ -2532,7 +2573,7 @@ function DriversPanel({ isAdmin }) {
                             height: "34px",
                             borderRadius: "50%",
                             background:
-                              "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                              "linear-gradient(135deg,#F97316,#EA580C)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -2611,7 +2652,7 @@ function DriversPanel({ isAdmin }) {
                               style={{
                                 width: 72,
                                 padding: "5px 8px",
-                                border: "1.5px solid #6366f1",
+                                border: "1.5px solid #F97316",
                                 borderRadius: 7,
                                 fontSize: 12,
                                 outline: "none",
@@ -2629,7 +2670,7 @@ function DriversPanel({ isAdmin }) {
                                 padding: "5px 10px",
                                 border: "none",
                                 borderRadius: 6,
-                                background: "#6366f1",
+                                background: "#F97316",
                                 color: "#fff",
                                 fontSize: 11,
                                 fontWeight: 700,
@@ -3089,7 +3130,7 @@ export default function Management() {
                 <button
                   onClick={fetchBookings}
                   style={{
-                    background: "#6366f1",
+                    background: "#F97316",
                     color: "#fff",
                     border: "none",
                     borderRadius: "10px",
@@ -3271,7 +3312,7 @@ export default function Management() {
                   fontWeight: active ? "600" : "500",
                   color: active ? "#fff" : "#94a3b8",
                   background: active
-                    ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+                    ? "linear-gradient(135deg,#F97316,#EA580C)"
                     : "transparent",
                   transition: "all 0.15s",
                   textAlign: "left",
@@ -3351,22 +3392,6 @@ export default function Management() {
             >
               {roleCfg.label}
             </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: "9px",
-              padding: "7px 12px",
-              fontSize: "13px",
-              color: "#94a3b8",
-            }}
-          >
-            <FaSearch style={{ fontSize: "11px" }} />
-            <span>Search…</span>
           </div>
         </header>
         <main style={{ flex: 1, padding: "24px 28px", overflowY: "auto" }}>

@@ -15,13 +15,13 @@ const API = "http://localhost:5000";
 const ROLE_CONFIG = {
   OWNER: {
     label: "Owner",
-    color: "#7c3aed",
+    color: "#EA580C",
     dashTo: "/management",
     dashLabel: "Dashboard",
   },
   ADMIN: {
     label: "Admin",
-    color: "#6366f1",
+    color: "#F97316",
     dashTo: "/management",
     dashLabel: "Dashboard",
   },
@@ -57,7 +57,7 @@ const NOTIF_STYLE = {
   DRIVER_REJECTED: { dot: "#ef4444", icon: "✕" },
   BOOKING_ACTIVATED: { dot: "#22c55e", icon: "▶" },
   BOOKING_CANCELLED: { dot: "#ef4444", icon: "✕" },
-  PAYMENT_CONFIRMED: { dot: "#6366f1", icon: "$" },
+  PAYMENT_CONFIRMED: { dot: "#F97316", icon: "$" },
 };
 
 function timeAgo(dateStr) {
@@ -219,7 +219,7 @@ export default function Navbar() {
             style={{
               width: "36px",
               height: "36px",
-              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              background: "linear-gradient(135deg,#F97316,#EA580C)",
               borderRadius: "10px",
               display: "flex",
               alignItems: "center",
@@ -289,7 +289,7 @@ export default function Navbar() {
                     height: "38px",
                     borderRadius: "10px",
                     border: "1px solid #e2e8f0",
-                    background: bellOpen ? "#eef2ff" : "#fff",
+                    background: bellOpen ? "#FFF7ED" : "#fff",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -304,7 +304,7 @@ export default function Navbar() {
                     height="16"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={bellOpen ? "#6366f1" : "currentColor"}
+                    stroke={bellOpen ? "#F97316" : "currentColor"}
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -395,7 +395,7 @@ export default function Navbar() {
                           style={{
                             fontSize: 12,
                             fontWeight: 600,
-                            color: "#6366f1",
+                            color: "#F97316",
                             background: "none",
                             border: "none",
                             cursor: "pointer",
@@ -557,7 +557,7 @@ export default function Navbar() {
                                   width: 7,
                                   height: 7,
                                   borderRadius: "50%",
-                                  background: "#6366f1",
+                                  background: "#F97316",
                                   flexShrink: 0,
                                   marginTop: 5,
                                 }}
@@ -585,7 +585,7 @@ export default function Navbar() {
                           style={{
                             fontSize: 12,
                             fontWeight: 600,
-                            color: "#6366f1",
+                            color: "#F97316",
                             background: "none",
                             border: "none",
                             cursor: "pointer",
@@ -630,7 +630,7 @@ export default function Navbar() {
                       width: "28px",
                       height: "28px",
                       borderRadius: "8px",
-                      background: `linear-gradient(135deg,${cfg?.color || "#6366f1"},${cfg?.color || "#8b5cf6"}88)`,
+                      background: `linear-gradient(135deg,${cfg?.color || "#F97316"},${cfg?.color || "#EA580C"}88)`,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -717,7 +717,7 @@ export default function Navbar() {
                             width: "36px",
                             height: "36px",
                             borderRadius: "10px",
-                            background: `linear-gradient(135deg,${cfg?.color || "#6366f1"},${cfg?.color || "#8b5cf6"}88)`,
+                            background: `linear-gradient(135deg,${cfg?.color || "#F97316"},${cfg?.color || "#EA580C"}88)`,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -833,7 +833,7 @@ export default function Navbar() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "#f8fafc";
-                  e.currentTarget.style.borderColor = "#c7d2fe";
+                  e.currentTarget.style.borderColor = "#FDBA74";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "#fff";
@@ -848,7 +848,7 @@ export default function Navbar() {
                   padding: "8px 18px",
                   borderRadius: "9px",
                   border: "none",
-                  background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                  background: "linear-gradient(135deg,#F97316,#EA580C)",
                   color: "#fff",
                   fontSize: "13px",
                   fontWeight: "600",
@@ -881,11 +881,11 @@ function NavLink({ to, active, label, accent }) {
         fontSize: "13px",
         fontWeight: active ? "700" : "500",
         textDecoration: "none",
-        color: active ? "#6366f1" : "#64748b",
-        background: active ? "#eef2ff" : "transparent",
+        color: active ? "#F97316" : "#64748b",
+        background: active ? "#FFF7ED" : "transparent",
         transition: "all 0.15s",
         border:
-          accent && !active ? "1px dashed #c7d2fe" : "1px solid transparent",
+          accent && !active ? "1px dashed #FDBA74" : "1px solid transparent",
       }}
       onMouseEnter={(e) => {
         if (!active) {
@@ -924,7 +924,7 @@ function DropItem({ to, icon, label, onClick }) {
       onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <span style={{ color: "#6366f1", fontSize: "12px" }}>{icon}</span>
+      <span style={{ color: "#F97316", fontSize: "12px" }}>{icon}</span>
       {label}
     </Link>
   );

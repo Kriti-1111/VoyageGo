@@ -199,7 +199,7 @@ function PhotoCard({ slot, preview, onSelect, onClear }) {
             padding: "9px 0",
             borderRadius: 8,
             border: "none",
-            background: preview ? "#f0fdf4" : "#2563eb",
+            background: preview ? "#f0fdf4" : "#EA580C",
             color: preview ? "#15803d" : "#fff",
             fontSize: 13,
             fontWeight: 600,
@@ -296,6 +296,7 @@ export default function ConditionReport() {
         setBookingErr(err.response?.data?.message || "Failed to load booking."),
       )
       .finally(() => setLoadingB(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
   async function handleSelect(key, file) {
@@ -351,7 +352,10 @@ export default function ConditionReport() {
       </div>
     );
 
-  if (bookingErr || (booking && booking.status !== "Accepted"))
+  if (
+    bookingErr ||
+    (booking && !["Active", "Confirmed", "Completed"].includes(booking.status))
+  )
     return (
       <div
         style={{
@@ -374,7 +378,11 @@ export default function ConditionReport() {
           }}
         >
           <p style={{ fontWeight: 700, marginBottom: 4 }}>
-            {bookingErr || "This booking is not in Accepted status."}
+            {bookingErr || "This booking cannot be reported at this stage."}
+          </p>
+          <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>
+            Only active or completed trips can have a condition report
+            submitted.
           </p>
           <button
             onClick={() => navigate("/customer")}
@@ -469,7 +477,7 @@ export default function ConditionReport() {
                         height="13"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#6366f1"
+                        stroke="#F97316"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -484,7 +492,7 @@ export default function ConditionReport() {
                         height="13"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#6366f1"
+                        stroke="#F97316"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -501,7 +509,7 @@ export default function ConditionReport() {
                         height="13"
                         viewBox="0 0 24 24"
                         fill="none"
-                        stroke="#6366f1"
+                        stroke="#F97316"
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -629,7 +637,7 @@ export default function ConditionReport() {
                 style={{
                   height: "100%",
                   borderRadius: 2,
-                  background: allDone ? "#22c55e" : "#2563eb",
+                  background: allDone ? "#22c55e" : "#EA580C",
                   width: `${(doneCount / 4) * 100}%`,
                   transition: "width 0.3s ease",
                 }}
@@ -659,9 +667,9 @@ export default function ConditionReport() {
           {/* Photo guidelines */}
           <div
             style={{
-              background: "#eff6ff",
+              background: "#FFF7ED",
               borderRadius: 12,
-              border: "1px solid #bfdbfe",
+              border: "1px solid #FDBA74",
               padding: "16px 18px",
             }}
           >
@@ -671,7 +679,7 @@ export default function ConditionReport() {
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  background: "#dbeafe",
+                  background: "#FED7AA",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -683,7 +691,7 @@ export default function ConditionReport() {
                   height="13"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#2563eb"
+                  stroke="#EA580C"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -715,7 +723,7 @@ export default function ConditionReport() {
                       key={i}
                       style={{
                         fontSize: 12,
-                        color: "#1d4ed8",
+                        color: "#EA580C",
                         marginBottom: 3,
                         lineHeight: 1.6,
                       }}

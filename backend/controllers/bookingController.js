@@ -495,11 +495,22 @@ export const processPayment = async (req, res) => {
       return res.status(403).json({ message: "Not authorised." });
     }
 
-    if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
-      return res.status(400).json({ message: "Already paid." });
+    // Accept payment for both:
+    // - PendingPayment: self-drive bookings waiting for payment
+    // - Confirmed: with-driver bookings where driver already accepted
+    const payableStatuses = [
+      BOOKING_STATUS.PENDING_PAYMENT,
+      BOOKING_STATUS.CONFIRMED,
+    ];
+    if (!payableStatuses.includes(booking.status)) {
+      return res
+        .status(400)
+        .json({ message: "Payment cannot be submitted at this stage." });
     }
-    if ([BOOKING_STATUS.CANCELLED, BOOKING_STATUS.COMPLETED].includes(booking.status)) {
-      return res.status(400).json({ message: "Invalid booking status for payment." });
+    if (booking.paymentStatus === PAYMENT_STATUS.PAID) {
+      return res
+        .status(400)
+        .json({ message: "This booking has already been paid." });
     }
 
     booking.paymentMethod = method;
@@ -521,18 +532,24 @@ export const processPayment = async (req, res) => {
       booking: booking._id,
     });
 
-    if (!booking.requiresDriver || booking.status === BOOKING_STATUS.CONFIRMED) {
+    if (
+      !booking.requiresDriver ||
+      booking.status === BOOKING_STATUS.PENDING_PAYMENT
+    ) {
+      // ── Self-drive: payment → Active immediately (no driver step needed) ──────
       booking.status = BOOKING_STATUS.ACTIVE;
       await booking.save();
       await notify({
         recipient: booking.customer,
         type: NOTIF_TYPES.BOOKING_ACTIVE,
         title: "Booking confirmed and active",
-        message: `Your booking for ${booking.vehicle?.name || "the vehicle"} is active.`,
+        message: `Your self-drive booking for ${booking.vehicle?.name || "the vehicle"} is active. See you at pickup!`,
         booking: booking._id,
       });
     } else {
+      // ── With-driver (Confirmed + Paid) → tryAutoActivate ─────────────────────
       await booking.save();
+      await tryAutoActivate(booking);
     }
 
     const updated = await Booking.findById(id)

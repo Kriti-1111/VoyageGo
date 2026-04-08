@@ -27,10 +27,10 @@ function fmtDate(d) {
 
 const STATUS_STYLE = {
   PendingPayment: {
-    bg: "#eff6ff",
-    color: "#1d4ed8",
+    bg: "#FFF7ED",
+    color: "#EA580C",
     dot: "#3b82f6",
-    border: "#bfdbfe",
+    border: "#FDBA74",
     label: "Pay now",
   },
   PendingDriver: {
@@ -41,10 +41,10 @@ const STATUS_STYLE = {
     label: "Awaiting driver",
   },
   Confirmed: {
-    bg: "#eff6ff",
-    color: "#1d4ed8",
+    bg: "#FFF7ED",
+    color: "#EA580C",
     dot: "#3b82f6",
-    border: "#bfdbfe",
+    border: "#FDBA74",
     label: "Confirmed",
   },
   Active: {
@@ -108,7 +108,7 @@ function BookingActions({ booking, onCancel, navigate }) {
             padding: "11px 18px",
             borderRadius: 9,
             border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            background: "linear-gradient(135deg,#F97316,#EA580C)",
             color: "#fff",
             fontSize: 13,
             fontWeight: 700,
@@ -195,7 +195,7 @@ function BookingActions({ booking, onCancel, navigate }) {
             padding: "10px 18px",
             borderRadius: 9,
             border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            background: "linear-gradient(135deg,#F97316,#EA580C)",
             color: "#fff",
             fontSize: 13,
             fontWeight: 700,
@@ -229,12 +229,41 @@ function BookingActions({ booking, onCancel, navigate }) {
 
   if (booking.status === "Active") {
     return (
-      <button
-        onClick={() => navigate(`/booking/${id}/return`)}
-        style={actionBtn("#6366f1", "#eef2ff", "#c7d2fe")}
-      >
-        Return vehicle
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <button
+          onClick={() => navigate(`/booking/${id}/return`)}
+          style={actionBtn("#F97316", "#FFF7ED", "#FDBA74")}
+        >
+          Return vehicle
+        </button>
+        <button
+          onClick={() => navigate(`/booking/${id}/condition-report`)}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 9,
+            border: "1.5px solid #FDBA74",
+            background: "#FFF7ED",
+            color: "#EA580C",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            textAlign: "center",
+          }}
+        >
+          📋 Report vehicle condition{" "}
+          <span style={{ fontWeight: 400, fontSize: 11 }}>(optional)</span>
+        </button>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            color: "#94a3b8",
+            textAlign: "center",
+          }}
+        >
+          Protect yourself by documenting any scratches or issues
+        </p>
+      </div>
     );
   }
 
@@ -242,7 +271,7 @@ function BookingActions({ booking, onCancel, navigate }) {
     return (
       <button
         onClick={() => navigate("/explore")}
-        style={actionBtn("#6366f1", "#eef2ff", "#c7d2fe")}
+        style={actionBtn("#F97316", "#FFF7ED", "#FDBA74")}
       >
         Book another vehicle
       </button>
@@ -277,7 +306,7 @@ function BookingCard({ booking, onCancel, navigate }) {
         background: "#fff",
         borderRadius: 14,
         overflow: "hidden",
-        border: `1.5px solid ${needsPayment ? "#6366f1" : isPendingDriver ? "#fde68a" : "#f1f5f9"}`,
+        border: `1.5px solid ${needsPayment ? "#F97316" : isPendingDriver ? "#fde68a" : "#f1f5f9"}`,
         transition: "box-shadow 0.2s",
       }}
       onMouseEnter={(e) =>
@@ -289,7 +318,7 @@ function BookingCard({ booking, onCancel, navigate }) {
         <div
           style={{
             background:
-              booking.status === "PendingPayment" ? "#3b82f6" : "#6366f1",
+              booking.status === "PendingPayment" ? "#3b82f6" : "#F97316",
             padding: "5px 16px",
           }}
         >
@@ -337,7 +366,7 @@ function BookingCard({ booking, onCancel, navigate }) {
               height: 42,
               borderRadius: 10,
               flexShrink: 0,
-              background: "linear-gradient(135deg,#eef2ff,#f5f3ff)",
+              background: "linear-gradient(135deg,#FFF7ED,#f5f3ff)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -351,7 +380,7 @@ function BookingCard({ booking, onCancel, navigate }) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              <span style={{ fontSize: 16, fontWeight: 700, color: "#6366f1" }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "#F97316" }}>
                 {(booking.vehicle?.name || "V")[0]}
               </span>
             )}
@@ -657,7 +686,7 @@ export default function Customer() {
     {
       label: "Completed",
       value: bookings.filter((b) => b.status === "Completed").length,
-      color: "#6366f1",
+      color: "#F97316",
     },
     { label: "Total bookings", value: bookings.length, color: "#3b82f6" },
   ];
@@ -688,7 +717,7 @@ export default function Customer() {
               width: 220,
               height: 220,
               borderRadius: "50%",
-              background: "rgba(99,102,241,0.1)",
+              background: "rgba(30,58,138,0.1)",
             }}
           />
           <div
@@ -730,7 +759,7 @@ export default function Customer() {
           {needsAction > 0 && (
             <div
               style={{
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 borderRadius: 12,
                 padding: "14px 20px",
                 marginBottom: 20,
@@ -753,7 +782,7 @@ export default function Customer() {
                   payment
                 </p>
                 <p
-                  style={{ margin: "2px 0 0", fontSize: 12, color: "#c7d2fe" }}
+                  style={{ margin: "2px 0 0", fontSize: 12, color: "#FDBA74" }}
                 >
                   Pay now to activate instantly.
                 </p>
@@ -835,7 +864,7 @@ export default function Customer() {
                 padding: "10px 20px",
                 borderRadius: 10,
                 border: "none",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 color: "#fff",
                 fontSize: 13,
                 fontWeight: 700,
@@ -906,7 +935,7 @@ export default function Customer() {
                         background:
                           t.key === "pending"
                             ? needsAction > 0
-                              ? "#6366f1"
+                              ? "#F97316"
                               : "#f59e0b"
                             : t.key === "active"
                               ? "#22c55e"
@@ -969,7 +998,7 @@ export default function Customer() {
                       padding: "9px 20px",
                       borderRadius: 9,
                       border: "none",
-                      background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                      background: "linear-gradient(135deg,#F97316,#EA580C)",
                       color: "#fff",
                       fontSize: 13,
                       fontWeight: 700,

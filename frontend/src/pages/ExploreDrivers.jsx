@@ -44,7 +44,7 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
           height: 52,
           borderRadius: "50%",
           flexShrink: 0,
-          background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+          background: "linear-gradient(135deg,#F97316,#EA580C)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -74,8 +74,8 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                background: "#dbeafe",
-                color: "#1d4ed8",
+                background: "#FED7AA",
+                color: "#EA580C",
                 padding: "2px 7px",
                 borderRadius: 20,
               }}
@@ -151,7 +151,7 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
             padding: "9px 16px",
             borderRadius: 10,
             border: "none",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+            background: "linear-gradient(135deg,#F97316,#EA580C)",
             color: "#fff",
             fontSize: 13,
             fontWeight: 600,
@@ -329,7 +329,7 @@ export default function ExploreDrivers() {
             Verified professional drivers available for hire
             {!isLoggedIn && (
               <span
-                style={{ marginLeft: 8, color: "#6366f1", fontWeight: 600 }}
+                style={{ marginLeft: 8, color: "#F97316", fontWeight: 600 }}
               >
                 —{" "}
                 <button
@@ -338,7 +338,7 @@ export default function ExploreDrivers() {
                     background: "none",
                     border: "none",
                     cursor: "pointer",
-                    color: "#6366f1",
+                    color: "#F97316",
                     fontWeight: 600,
                     fontSize: 14,
                     padding: 0,
@@ -388,9 +388,9 @@ export default function ExploreDrivers() {
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.15s",
-              border: `1.5px solid ${filterAvail ? "#6366f1" : "#dde3ec"}`,
-              background: filterAvail ? "#eef2ff" : "#fff",
-              color: filterAvail ? "#4f46e5" : "#64748b",
+              border: `1.5px solid ${filterAvail ? "#F97316" : "#dde3ec"}`,
+              background: filterAvail ? "#FFF7ED" : "#fff",
+              color: filterAvail ? "#F97316" : "#64748b",
             }}
           >
             Available only
@@ -488,7 +488,7 @@ const primaryBtn = {
   padding: "10px 22px",
   borderRadius: 10,
   border: "none",
-  background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+  background: "linear-gradient(135deg,#F97316,#EA580C)",
   color: "#fff",
   fontSize: 13,
   fontWeight: 600,

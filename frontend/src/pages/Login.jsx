@@ -50,7 +50,7 @@ export default function Login() {
         style={{
           flex: "0 0 420px",
           background:
-            "linear-gradient(155deg,#0f172a 0%,#1e1b4b 50%,#312e81 100%)",
+            "linear-gradient(155deg,#0f172a 0%,#F97316 50%,#EA580C 100%)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
@@ -67,7 +67,7 @@ export default function Login() {
             width: "280px",
             height: "280px",
             borderRadius: "50%",
-            background: "rgba(99,102,241,0.2)",
+            background: "rgba(249,115,22,0.25)",
           }}
         />
         <div
@@ -78,7 +78,7 @@ export default function Login() {
             width: "220px",
             height: "220px",
             borderRadius: "50%",
-            background: "rgba(139,92,246,0.15)",
+            background: "rgba(56,189,248,0.12)",
           }}
         />
 
@@ -97,7 +97,7 @@ export default function Login() {
               style={{
                 width: "40px",
                 height: "40px",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 borderRadius: "12px",
                 display: "flex",
                 alignItems: "center",
@@ -283,7 +283,7 @@ export default function Login() {
                 padding: "13px",
                 borderRadius: "10px",
                 border: "none",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 color: "#fff",
                 fontSize: "15px",
                 fontWeight: "700",
@@ -291,6 +291,7 @@ export default function Login() {
                 opacity: loading ? 0.8 : 1,
                 marginTop: "4px",
                 transition: "opacity 0.2s,transform 0.1s",
+                boxShadow: "0 4px 14px rgba(249,115,22,0.3)",
               }}
               onMouseEnter={(e) => {
                 if (!loading)
@@ -314,7 +315,7 @@ export default function Login() {
             <Link
               to="/register"
               style={{
-                color: "#6366f1",
+                color: "#F97316",
                 fontWeight: "700",
                 textDecoration: "none",
               }}
@@ -351,8 +352,8 @@ const inputStyle = {
   fontFamily: "inherit",
 };
 const focusStyle = (e) => {
-  e.target.style.borderColor = "#6366f1";
-  e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.12)";
+  e.target.style.borderColor = "#F97316";
+  e.target.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.12)";
 };
 const blurStyle = (e) => {
   e.target.style.borderColor = "#e2e8f0";

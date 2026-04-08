@@ -33,6 +33,9 @@ export default function Payment() {
   const [paying, setPaying] = useState(false);
   const [demoPaying, setDemoPaying] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showTnC, setShowTnC] = useState(false); // T&C dialog
+  const [tnCAccepted, setTnCAccepted] = useState(false); // checkbox
+  const [pendingAction, setPendingAction] = useState(null); // "esewa" | "demo"
 
   useEffect(() => {
     if (!user) {
@@ -53,6 +56,13 @@ export default function Payment() {
 
   // ── eSewa ─────────────────────────────────────────────────────────────────
   async function handleEsewa() {
+    // Show T&C dialog first
+    setPendingAction("esewa");
+    setTnCAccepted(false);
+    setShowTnC(true);
+  }
+  async function proceedEsewa() {
+    setShowTnC(false);
     setPaying(true);
     try {
       const { data } = await axios.post(
@@ -97,6 +107,12 @@ export default function Payment() {
 
   // ── Demo pay ───────────────────────────────────────────────────────────────
   async function handleDemoPay() {
+    setPendingAction("demo");
+    setTnCAccepted(false);
+    setShowTnC(true);
+  }
+  async function proceedDemoPay() {
+    setShowTnC(false);
     setDemoPaying(true);
     try {
       await axios.post(
@@ -117,7 +133,6 @@ export default function Payment() {
     setTimeout(() => setToast(null), 5000);
   }
 
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loadingB)
     return (
       <div
@@ -177,6 +192,13 @@ export default function Payment() {
 
   const busy = paying || demoPaying;
 
+  // Confirmed T&C → proceed with the chosen action
+  async function confirmTnC() {
+    if (!tnCAccepted) return;
+    if (pendingAction === "esewa") await proceedEsewa();
+    else await proceedDemoPay();
+  }
+
   return (
     <>
       <style>{`* { box-sizing: border-box; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -188,12 +210,10 @@ export default function Payment() {
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
         }}
       >
-        {/* Back */}
         <button onClick={() => navigate("/customer")} style={backBtn}>
           ← Back to Dashboard
         </button>
 
-        {/* Header */}
         <h1
           style={{
             margin: "0 0 4px",
@@ -278,7 +298,8 @@ export default function Payment() {
             <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
               Total
             </span>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#60BB46" }}>
+            {/* Changed from #60BB46 (eSewa green) → #F97316 (system blue) */}
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#F97316" }}>
               Rs {(booking?.totalPrice || 0).toLocaleString()}
             </span>
           </div>
@@ -441,7 +462,7 @@ export default function Payment() {
 
           <p
             style={{
-              margin: "0",
+              margin: 0,
               fontSize: 11,
               color: "#94a3b8",
               textAlign: "center",
@@ -453,7 +474,6 @@ export default function Payment() {
         </div>
       </div>
 
-      {/* Toast */}
       {toast && (
         <div
           style={{
@@ -471,6 +491,271 @@ export default function Payment() {
           }}
         >
           {toast.msg}
+        </div>
+      )}
+
+      {/* ── Terms & Conditions Dialog ── */}
+      {showTnC && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 520,
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "20px 24px 16px",
+                borderBottom: "1px solid #f1f5f9",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 22 }}>📋</span>
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 17,
+                    fontWeight: 800,
+                    color: "#111827",
+                  }}
+                >
+                  Rental Agreement & Fine Policy
+                </h2>
+                <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
+                  Please read carefully before proceeding to payment
+                </p>
+              </div>
+            </div>
+
+            {/* Content — scrollable */}
+            <div
+              style={{
+                overflowY: "auto",
+                padding: "20px 24px",
+                flex: 1,
+                fontSize: 13.5,
+                color: "#374151",
+                lineHeight: 1.75,
+              }}
+            >
+              <div
+                style={{
+                  background: "#FFF7ED",
+                  border: "1px solid #FED7AA",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  marginBottom: 18,
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontWeight: 700,
+                    color: "#EA580C",
+                    fontSize: 14,
+                  }}
+                >
+                  ⚠️ Late return charges apply
+                </p>
+                <p
+                  style={{ margin: "4px 0 0", color: "#9a3412", fontSize: 13 }}
+                >
+                  You are responsible for returning the vehicle on time. Late
+                  returns will be charged automatically.
+                </p>
+              </div>
+
+              <p>
+                <strong>1. Grace Period</strong>
+                <br />
+                You are given a <strong>30-minute grace period</strong> after
+                your scheduled return time at no extra cost. Delays beyond 30
+                minutes will incur late return charges.
+              </p>
+
+              <p>
+                <strong>2. Late Return Fine Structure</strong>
+                <br />
+                If you return the vehicle late, the following charges apply:
+              </p>
+              <ul style={{ paddingLeft: 20, margin: "8px 0 12px" }}>
+                <li style={{ marginBottom: 6 }}>
+                  <strong>1–6 hours late:</strong> Charged at the vehicle's
+                  standard <strong>hourly rate</strong> for each late hour
+                  (rounded up). If a driver was included, the driver's hourly
+                  rate is also added per late hour.
+                </li>
+                <li style={{ marginBottom: 6 }}>
+                  <strong>More than 6 hours late:</strong> A{" "}
+                  <strong>full daily rate</strong> is charged (vehicle daily
+                  rate + driver daily rate if applicable), regardless of how
+                  many extra hours were taken.
+                </li>
+              </ul>
+
+              <p>
+                <strong>3. How daily rates are calculated</strong>
+                <br />
+                The daily rate used for late fines is locked in at the time of
+                your booking:
+              </p>
+              <ul style={{ paddingLeft: 20, margin: "8px 0 12px" }}>
+                <li style={{ marginBottom: 4 }}>
+                  1–6 day bookings: daily rate ={" "}
+                  <strong>hourly rate × 24 × 0.80</strong> (20% off)
+                </li>
+                <li style={{ marginBottom: 4 }}>
+                  7–30 day bookings: daily rate ={" "}
+                  <strong>hourly rate × 24 × 0.70</strong> (30% off)
+                </li>
+              </ul>
+
+              <p>
+                <strong>4. Payment of fines</strong>
+                <br />
+                Fine amounts are calculated when you submit the vehicle return.
+                The total fine will be displayed before you confirm the return.
+                VoyageGo reserves the right to collect outstanding fines before
+                releasing the vehicle for future bookings.
+              </p>
+
+              <p>
+                <strong>5. Vehicle condition</strong>
+                <br />
+                You are encouraged to use the optional{" "}
+                <em>"Report vehicle condition"</em> feature on your active
+                booking to document any pre-existing damage. Unreported damage
+                discovered at return may be subject to additional charges at
+                management discretion.
+              </p>
+
+              <p>
+                <strong>6. Cancellation</strong>
+                <br />
+                Bookings in <em>Pending</em> or <em>Confirmed</em> status may be
+                cancelled at no charge. Active trips cannot be cancelled — the
+                return process must be completed.
+              </p>
+
+              <p
+                style={{
+                  margin: "16px 0 0",
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  color: "#15803d",
+                  fontSize: 13,
+                }}
+              >
+                ✅ By proceeding to payment, you agree to these terms and
+                acknowledge the fine structure described above.
+              </p>
+            </div>
+
+            {/* Footer — checkbox + buttons */}
+            <div
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid #f1f5f9",
+                background: "#f9fafb",
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  cursor: "pointer",
+                  marginBottom: 16,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={tnCAccepted}
+                  onChange={(e) => setTnCAccepted(e.target.checked)}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    marginTop: 2,
+                    accentColor: "#F97316",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}
+                >
+                  I have read and agree to the{" "}
+                  <strong>Rental Agreement & Fine Policy</strong>. I understand
+                  that late returns beyond the 30-minute grace period will be
+                  charged at the rates above.
+                </span>
+              </label>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => setShowTnC(false)}
+                  style={{
+                    flex: 1,
+                    padding: "11px",
+                    borderRadius: 10,
+                    border: "1px solid #e2e8f0",
+                    background: "#fff",
+                    color: "#64748b",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmTnC}
+                  disabled={!tnCAccepted}
+                  style={{
+                    flex: 2,
+                    padding: "11px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: tnCAccepted
+                      ? "linear-gradient(135deg,#F97316,#EA580C)"
+                      : "#e2e8f0",
+                    color: tnCAccepted ? "#fff" : "#94a3b8",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: tnCAccepted ? "pointer" : "not-allowed",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {tnCAccepted
+                    ? "I agree — Proceed to payment →"
+                    : "Check the box above to proceed"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>

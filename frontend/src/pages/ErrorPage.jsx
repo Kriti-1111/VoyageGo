@@ -110,7 +110,7 @@ export default function ErrorPage() {
               padding: "10px 22px",
               borderRadius: 10,
               border: "none",
-              background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+              background: "linear-gradient(135deg,#F97316,#EA580C)",
               color: "#fff",
               fontSize: 13,
               fontWeight: 600,

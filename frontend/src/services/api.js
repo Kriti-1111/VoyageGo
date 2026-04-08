@@ -1,7 +1,3 @@
-// ─── Central API configuration ────────────────────────────────────────────────
-// ALL files must import from here. Never hardcode URLs elsewhere.
-// To change the backend URL, only edit this one file.
-
 export const BASE_URL = "http://localhost:5000";
 
 export const ENDPOINTS = {

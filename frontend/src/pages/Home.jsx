@@ -12,7 +12,7 @@ function FeatureIcon({ type }) {
   };
   const icons = {
     vehicle: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <rect x="1" y="3" width="15" height="13" rx="2" />
         <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
         <circle cx="5.5" cy="18.5" r="2.5" />
@@ -20,13 +20,13 @@ function FeatureIcon({ type }) {
       </svg>
     ),
     driver: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
         <circle cx="12" cy="7" r="4" />
       </svg>
     ),
     booking: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
@@ -34,18 +34,18 @@ function FeatureIcon({ type }) {
       </svg>
     ),
     secure: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
     tracking: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
         <circle cx="12" cy="10" r="3" />
       </svg>
     ),
     rating: (
-      <svg {...props} stroke="#6366f1">
+      <svg {...props} stroke="#F97316">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
@@ -105,7 +105,7 @@ export default function Home() {
       <section
         style={{
           background:
-            "linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#3730a3 100%)",
+            "linear-gradient(135deg,#1F2937 0%,#111827 55%,#7C2D12 100%)",
           padding: "100px 32px 120px",
           textAlign: "center",
           position: "relative",
@@ -120,7 +120,7 @@ export default function Home() {
             width: "400px",
             height: "400px",
             borderRadius: "50%",
-            background: "rgba(99,102,241,0.12)",
+            background: "rgba(249,115,22,0.12)",
           }}
         />
         <div
@@ -131,7 +131,7 @@ export default function Home() {
             width: "300px",
             height: "300px",
             borderRadius: "50%",
-            background: "rgba(139,92,246,0.1)",
+            background: "rgba(234,88,12,0.1)",
           }}
         />
         <div
@@ -142,8 +142,8 @@ export default function Home() {
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
-              background: "rgba(99,102,241,0.15)",
-              border: "1px solid rgba(99,102,241,0.3)",
+              background: "rgba(30,58,138,0.15)",
+              border: "1px solid rgba(249,115,22,0.3)",
               borderRadius: "20px",
               padding: "6px 16px",
               marginBottom: "24px",
@@ -153,12 +153,12 @@ export default function Home() {
               style={{
                 width: "6px",
                 height: "6px",
-                background: "#a5b4fc",
+                background: "#F97316",
                 borderRadius: "50%",
               }}
             />
             <span
-              style={{ fontSize: "13px", color: "#a5b4fc", fontWeight: "600" }}
+              style={{ fontSize: "13px", color: "#FED7AA", fontWeight: "600" }}
             >
               Available across Kathmandu
             </span>
@@ -177,7 +177,7 @@ export default function Home() {
             <br />
             <span
               style={{
-                background: "linear-gradient(135deg,#a5b4fc,#c4b5fd)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -211,23 +211,23 @@ export default function Home() {
                 padding: "14px 32px",
                 borderRadius: "12px",
                 border: "none",
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#F97316,#EA580C)",
                 color: "#fff",
                 fontSize: "16px",
                 fontWeight: "700",
                 cursor: "pointer",
                 transition: "transform 0.15s, box-shadow 0.15s",
-                boxShadow: "0 8px 24px rgba(99,102,241,0.4)",
+                boxShadow: "0 8px 24px rgba(30,58,138,0.4)",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-2px)";
                 e.currentTarget.style.boxShadow =
-                  "0 12px 32px rgba(99,102,241,0.5)";
+                  "0 12px 32px rgba(30,58,138,0.5)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "";
                 e.currentTarget.style.boxShadow =
-                  "0 8px 24px rgba(99,102,241,0.4)";
+                  "0 8px 24px rgba(30,58,138,0.4)";
               }}
             >
               Explore Vehicles
@@ -289,7 +289,7 @@ export default function Home() {
                 style={{
                   fontSize: "32px",
                   fontWeight: "800",
-                  color: "#6366f1",
+                  color: "#F97316",
                   margin: 0,
                   letterSpacing: "-1px",
                 }}
@@ -340,7 +340,7 @@ export default function Home() {
             {[
               {
                 icon: "vehicle",
-                bg: "#eef2ff",
+                bg: "#FFF7ED",
                 title: "Wide Vehicle Selection",
                 desc: "From sedans to vans — pick the vehicle that fits your journey and group size.",
               },
@@ -494,12 +494,12 @@ export default function Home() {
                   style={{
                     width: "60px",
                     height: "60px",
-                    background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                    background: "linear-gradient(135deg,#F97316,#EA580C)",
                     borderRadius: "16px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 8px 24px rgba(99,102,241,0.3)",
+                    boxShadow: "0 8px 24px rgba(249,115,22,0.3)",
                   }}
                 >
                   <StepIcon type={s.icon} />
@@ -508,7 +508,7 @@ export default function Home() {
                   style={{
                     fontSize: "11px",
                     fontWeight: "800",
-                    color: "#6366f1",
+                    color: "#F97316",
                     letterSpacing: "1.5px",
                   }}
                 >
@@ -544,7 +544,7 @@ export default function Home() {
       {!user && (
         <section
           style={{
-            background: "linear-gradient(135deg,#0f172a,#1e1b4b)",
+            background: "linear-gradient(135deg,#1F2937,#111827)",
             padding: "80px 32px",
             textAlign: "center",
           }}
@@ -575,7 +575,7 @@ export default function Home() {
                   padding: "13px 28px",
                   borderRadius: "10px",
                   border: "none",
-                  background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                  background: "linear-gradient(135deg,#F97316,#EA580C)",
                   color: "#fff",
                   fontSize: "15px",
                   fontWeight: "700",

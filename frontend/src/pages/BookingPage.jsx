@@ -610,7 +610,7 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                       borderRadius: "50%",
                       background: conflict
                         ? "#e2e8f0"
-                        : "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                        : "linear-gradient(135deg,#F97316,#EA580C)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -677,8 +677,8 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = "#f1f5f9";
-                        e.currentTarget.style.borderColor = "#6366f1";
-                        e.currentTarget.style.color = "#6366f1";
+                        e.currentTarget.style.borderColor = "#F97316";
+                        e.currentTarget.style.color = "#F97316";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "#f8fafc";
@@ -709,9 +709,9 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                       style={{
                         fontSize: 11,
                         fontWeight: 600,
-                        color: "#6366f1",
-                        background: "#eef2ff",
-                        border: "1px solid #c7d2fe",
+                        color: "#F97316",
+                        background: "#FFF7ED",
+                        border: "1px solid #FDBA74",
                         padding: "3px 9px",
                         borderRadius: 20,
                         flexShrink: 0,
@@ -1013,7 +1013,7 @@ export default function BookingPage() {
                     padding: "10px 24px",
                     border: "none",
                     cursor: "pointer",
-                    background: mode === key ? "#6366f1" : "#fff",
+                    background: mode === key ? "#F97316" : "#fff",
                     color: mode === key ? "#fff" : "#64748b",
                     fontSize: 13,
                     fontWeight: 600,
@@ -1171,8 +1171,8 @@ export default function BookingPage() {
                     borderRadius: 10,
                     cursor: "pointer",
                     textAlign: "left",
-                    border: `1.5px solid ${requiresDriver === opt.val ? "#6366f1" : "#e2e8f0"}`,
-                    background: requiresDriver === opt.val ? "#eef2ff" : "#fff",
+                    border: `1.5px solid ${requiresDriver === opt.val ? "#F97316" : "#e2e8f0"}`,
+                    background: requiresDriver === opt.val ? "#FFF7ED" : "#fff",
                     transition: "all 0.15s",
                   }}
                 >
@@ -1181,7 +1181,7 @@ export default function BookingPage() {
                       margin: 0,
                       fontSize: 13,
                       fontWeight: 700,
-                      color: requiresDriver === opt.val ? "#4f46e5" : "#334155",
+                      color: requiresDriver === opt.val ? "#F97316" : "#334155",
                     }}
                   >
                     {opt.label}
@@ -1229,8 +1229,8 @@ export default function BookingPage() {
                       borderRadius: 10,
                       cursor: "pointer",
                       textAlign: "left",
-                      border: `1.5px solid ${pickupType === opt.val ? "#6366f1" : "#e2e8f0"}`,
-                      background: pickupType === opt.val ? "#eef2ff" : "#fff",
+                      border: `1.5px solid ${pickupType === opt.val ? "#F97316" : "#e2e8f0"}`,
+                      background: pickupType === opt.val ? "#FFF7ED" : "#fff",
                       transition: "all 0.15s",
                     }}
                   >
@@ -1239,7 +1239,7 @@ export default function BookingPage() {
                         margin: 0,
                         fontSize: 13,
                         fontWeight: 700,
-                        color: pickupType === opt.val ? "#4f46e5" : "#334155",
+                        color: pickupType === opt.val ? "#F97316" : "#334155",
                       }}
                     >
                       {opt.label}
@@ -1299,7 +1299,7 @@ export default function BookingPage() {
                         width: 32,
                         height: 32,
                         borderRadius: "50%",
-                        background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                        background: "linear-gradient(135deg,#F97316,#EA580C)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -1352,9 +1352,9 @@ export default function BookingPage() {
                       padding: "10px 14px",
                       borderRadius: 10,
                       cursor: "pointer",
-                      border: "1.5px dashed #c7d2fe",
+                      border: "1.5px dashed #FDBA74",
                       background: "#f8faff",
-                      color: "#6366f1",
+                      color: "#F97316",
                       fontSize: 13,
                       fontWeight: 600,
                       display: "flex",
@@ -1364,12 +1364,12 @@ export default function BookingPage() {
                       transition: "all 0.15s",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#eef2ff";
-                      e.currentTarget.style.borderColor = "#6366f1";
+                      e.currentTarget.style.background = "#FFF7ED";
+                      e.currentTarget.style.borderColor = "#F97316";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "#f8faff";
-                      e.currentTarget.style.borderColor = "#c7d2fe";
+                      e.currentTarget.style.borderColor = "#FDBA74";
                     }}
                   >
                     <svg
@@ -1451,9 +1451,9 @@ export default function BookingPage() {
                     fontWeight: 600,
                     padding: "2px 8px",
                     borderRadius: 20,
-                    background: requiresDriver ? "#eef2ff" : "#f0fdf4",
-                    color: requiresDriver ? "#6366f1" : "#16a34a",
-                    border: `1px solid ${requiresDriver ? "#c7d2fe" : "#bbf7d0"}`,
+                    background: requiresDriver ? "#FFF7ED" : "#f0fdf4",
+                    color: requiresDriver ? "#F97316" : "#16a34a",
+                    border: `1px solid ${requiresDriver ? "#FDBA74" : "#bbf7d0"}`,
                   }}
                 >
                   {requiresDriver ? "With driver" : "Self-drive"}
@@ -1547,7 +1547,7 @@ export default function BookingPage() {
                   Total
                 </span>
                 <span
-                  style={{ fontSize: 18, fontWeight: 800, color: "#6366f1" }}
+                  style={{ fontSize: 18, fontWeight: 800, color: "#F97316" }}
                 >
                   Rs {pricing.total.toLocaleString()}
                 </span>
@@ -1578,7 +1578,7 @@ export default function BookingPage() {
               fontWeight: 700,
               cursor: canSubmit ? "pointer" : "not-allowed",
               background: canSubmit
-                ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+                ? "linear-gradient(135deg,#F97316,#EA580C)"
                 : "#e2e8f0",
               color: canSubmit ? "#fff" : "#94a3b8",
               transition: "opacity 0.15s",

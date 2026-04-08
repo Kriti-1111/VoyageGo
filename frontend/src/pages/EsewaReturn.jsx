@@ -4,8 +4,9 @@ import axios from "axios";
 
 const API = "http://localhost:5000";
 
-// eSewa v2 (rc-epay.esewa.com.np) appends ?data=BASE64_JSON to the success URL.
-// This component reads that param and calls our backend to verify it.
+// Backend verifies eSewa payment and redirects here with:
+//   ?status=success&bookingId=XXX  — paid and active
+//   ?status=failed&reason=...      — failed or cancelled
 
 export default function EsewaReturn() {
   const [params] = useSearchParams();
@@ -15,36 +16,38 @@ export default function EsewaReturn() {
   const [booking, setBooking] = useState(null);
 
   useEffect(() => {
-    const data = params.get("data");
+    const payStatus = params.get("status");
+    const bookingId = params.get("bookingId");
+    const reason = params.get("reason");
 
-    if (!data) {
-      // Could be the failure redirect — no data param means payment was cancelled
+    if (payStatus === "failed") {
       setStatus("error");
       setMessage(
-        "Payment was cancelled or failed. No confirmation received from eSewa.",
+        reason === "invalid_signature"
+          ? "Payment signature could not be verified. Please contact support."
+          : "Payment was cancelled or failed. Please try again.",
       );
       return;
     }
 
-    const token =
-      sessionStorage.getItem("token") || localStorage.getItem("token");
+    if (payStatus === "success" && bookingId) {
+      const token =
+        sessionStorage.getItem("token") || localStorage.getItem("token");
+      axios
+        .get(`${API}/api/bookings/${bookingId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then(({ data }) => {
+          setBooking(data);
+          setStatus("success");
+        })
+        .catch(() => setStatus("success")); // booking is paid even if fetch fails
+      return;
+    }
 
-    axios
-      .get(`${API}/api/pay/esewa/verify`, {
-        params: { data },
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then(({ data: res }) => {
-        setBooking(res.booking);
-        setStatus("success");
-      })
-      .catch((err) => {
-        setStatus("error");
-        setMessage(
-          err.response?.data?.message ||
-            "Verification failed. Please contact support.",
-        );
-      });
+    // Unexpected params
+    setStatus("error");
+    setMessage("Unexpected response from eSewa. Please check your dashboard.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -56,9 +59,11 @@ export default function EsewaReturn() {
     textAlign: "center",
   };
 
+  // ── Verifying ─────────────────────────────────────────────────────────────
   if (status === "verifying")
     return (
       <div style={wrap}>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         <div
           style={{
             width: 56,
@@ -83,10 +88,10 @@ export default function EsewaReturn() {
         <p style={{ color: "#64748b", fontSize: 14 }}>
           Please wait while we confirm your eSewa payment.
         </p>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
 
+  // ── Error ─────────────────────────────────────────────────────────────────
   if (status === "error")
     return (
       <div style={wrap}>
@@ -163,7 +168,7 @@ export default function EsewaReturn() {
       </div>
     );
 
-  // Success
+  // ── Success ───────────────────────────────────────────────────────────────
   return (
     <div style={wrap}>
       <div
@@ -273,6 +278,7 @@ export default function EsewaReturn() {
         </div>
       )}
 
+      {/* ── Blue button (was purple) ── */}
       <button
         onClick={() => navigate("/customer")}
         style={{
@@ -280,11 +286,12 @@ export default function EsewaReturn() {
           padding: "13px",
           borderRadius: 12,
           border: "none",
-          background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+          background: "linear-gradient(135deg,#F97316,#EA580C)",
           color: "#fff",
           fontSize: 14,
           fontWeight: 700,
           cursor: "pointer",
+          boxShadow: "0 4px 14px rgba(249,115,22,0.3)",
         }}
       >
         Go to My Bookings
