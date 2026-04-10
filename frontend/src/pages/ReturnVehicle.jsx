@@ -186,7 +186,13 @@ export default function ReturnVehicle() {
         {},
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
-      setResult(data);
+      if (data.fine && data.fine > 0) {
+        // Fine incurred — redirect to fine payment page
+        navigate(`/payment/fine/${data.booking?._id || bookingId}`);
+      } else {
+        // No fine — show success screen
+        setResult(data);
+      }
     } catch (err) {
       showToast(
         err.response?.data?.message || "Could not process return.",

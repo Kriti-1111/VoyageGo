@@ -612,10 +612,18 @@ export const returnVehicle = async (req, res) => {
     booking.vehicleFine = fineBreakdown.vehicleFine;
     booking.driverFine = fineBreakdown.driverFine;
     booking.fine = fineBreakdown.total;
-    booking.totalPrice = booking.totalPrice + fineBreakdown.total;
+    // NOTE: totalPrice is NOT increased here — fine is collected separately via gateway
     booking.returnedAt = now;
     booking.postTrip.submittedAt = now;
     booking.status = BOOKING_STATUS.COMPLETED;
+    // If fine exists, mark it as unpaid — customer must pay via gateway
+    if (fineBreakdown.total > 0) {
+      booking.finePaid = false;
+      booking.finePaidAt = null;
+      booking.finePaidVia = null;
+    } else {
+      booking.finePaid = true; // no fine = no payment needed
+    }
     await booking.save();
 
     await notify({

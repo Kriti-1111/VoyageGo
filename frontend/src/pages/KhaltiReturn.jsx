@@ -4,13 +4,13 @@ import axios from "axios";
 
 const API = "http://localhost:5000";
 
-// Handles both booking and fine payments from eSewa.
-// Backend redirects here with:
-//   Booking: ?status=success&bookingId=XXX
-//   Fine:    ?status=success&bookingId=XXX&type=fine
-// On failure: ?status=failed&reason=...
+// Handles both booking and fine payments from Khalti.
+// Khalti redirects here with: ?pidx=XXX&status=Completed&purchase_order_id=YYY
+//   Booking payment: purchase_order_id = bookingId
+//   Fine payment:    purchase_order_id = "FINE-{bookingId}"
+// We detect which it is from purchase_order_id and call the right verify endpoint.
 
-export default function EsewaReturn() {
+export default function KhaltiReturn() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState("verifying");
@@ -19,41 +19,45 @@ export default function EsewaReturn() {
   const [isFine, setIsFine] = useState(false);
 
   useEffect(() => {
-    const payStatus = params.get("status");
-    const bookingId = params.get("bookingId");
-    const type = params.get("type"); // "fine" | null
-    const reason = params.get("reason");
-    const isFinePay = type === "fine";
+    const pidx = params.get("pidx");
+    const txnStatus = params.get("status");
+    const purchaseId = params.get("purchase_order_id") || "";
+    const isFinePay = purchaseId.startsWith("FINE-");
 
     setIsFine(isFinePay);
 
-    if (payStatus === "failed") {
+    if (!pidx) {
       setStatus("error");
-      setMessage(
-        reason === "invalid_signature"
-          ? "Payment signature could not be verified. Please contact support."
-          : "Payment was cancelled or failed. Please try again.",
-      );
+      setMessage("No payment reference received from Khalti.");
       return;
     }
 
-    if (payStatus === "success" && bookingId) {
-      const token =
-        sessionStorage.getItem("token") || localStorage.getItem("token");
-      axios
-        .get(`${API}/api/bookings/${bookingId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then(({ data }) => {
-          setBooking(data);
-          setStatus("success");
-        })
-        .catch(() => setStatus("success")); // payment is done even if fetch fails
+    if (txnStatus && txnStatus !== "Completed") {
+      setStatus("error");
+      setMessage(`Payment was ${txnStatus}. Please try again.`);
       return;
     }
 
-    setStatus("error");
-    setMessage("Unexpected response from eSewa. Please check your dashboard.");
+    const token =
+      sessionStorage.getItem("token") || localStorage.getItem("token");
+    const endpoint = isFinePay
+      ? `${API}/api/pay/khalti/fine/verify`
+      : `${API}/api/pay/khalti/verify`;
+
+    axios
+      .post(
+        endpoint,
+        { pidx },
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      .then(({ data }) => {
+        setBooking(data.booking);
+        setStatus("success");
+      })
+      .catch((err) => {
+        setStatus("error");
+        setMessage(err.response?.data?.message || "Verification failed.");
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,7 +78,7 @@ export default function EsewaReturn() {
             width: 56,
             height: 56,
             border: "4px solid #e2e8f0",
-            borderTopColor: "#60bb46",
+            borderTopColor: "#5C2D91",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
             margin: "0 auto 20px",
@@ -91,7 +95,7 @@ export default function EsewaReturn() {
           Verifying payment…
         </h2>
         <p style={{ color: "#64748b", fontSize: 14 }}>
-          Please wait while we confirm your eSewa payment.
+          Please wait while we confirm your Khalti payment.
         </p>
       </div>
     );
@@ -172,7 +176,7 @@ export default function EsewaReturn() {
       </div>
     );
 
-  // Success
+  // Success — different message for booking vs fine
   return (
     <div style={wrap}>
       <div
@@ -180,8 +184,8 @@ export default function EsewaReturn() {
           width: 72,
           height: 72,
           borderRadius: "50%",
-          background: "#f0fdf4",
-          border: "2px solid #86efac",
+          background: isFine ? "#f0fdf4" : "#f5f3ff",
+          border: `2px solid ${isFine ? "#86efac" : "#c4b5fd"}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -193,7 +197,7 @@ export default function EsewaReturn() {
           height="32"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#16a34a"
+          stroke={isFine ? "#16a34a" : "#7c3aed"}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -207,17 +211,17 @@ export default function EsewaReturn() {
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          background: "#f0fdf4",
-          border: "1px solid #bbf7d0",
+          background: isFine ? "#f0fdf4" : "#f5f3ff",
+          border: `1px solid ${isFine ? "#bbf7d0" : "#c4b5fd"}`,
           borderRadius: 20,
           padding: "4px 14px",
           fontSize: 12,
           fontWeight: 600,
-          color: "#15803d",
+          color: isFine ? "#15803d" : "#7c3aed",
           marginBottom: 16,
         }}
       >
-        {isFine ? "Fine Paid via eSewa ✓" : "eSewa Payment Successful ✓"}
+        {isFine ? "Fine Paid via Khalti ✓" : "Khalti Payment Successful ✓"}
       </div>
 
       <h2
@@ -232,7 +236,7 @@ export default function EsewaReturn() {
       </h2>
       <p style={{ margin: "0 0 24px", fontSize: 14, color: "#64748b" }}>
         {isFine
-          ? "Your late return fine has been paid via eSewa. Your booking is now fully closed."
+          ? "Your late return fine has been paid. Your booking is now fully closed."
           : "Your payment has been verified and your booking is now active."}
       </p>
 
@@ -254,7 +258,7 @@ export default function EsewaReturn() {
                   label: "Fine paid",
                   value: `Rs ${(booking.fine || 0).toLocaleString()}`,
                 },
-                { label: "Paid via", value: "eSewa" },
+                { label: "Paid via", value: "Khalti" },
                 { label: "Status", value: "Completed" },
               ]
             : [
@@ -274,7 +278,7 @@ export default function EsewaReturn() {
                   label: "Total",
                   value: `Rs ${(booking.totalPrice || 0).toLocaleString()}`,
                 },
-                { label: "Paid via", value: "eSewa" },
+                { label: "Paid via", value: "Khalti" },
               ]
           ).map(({ label, value }) => (
             <div

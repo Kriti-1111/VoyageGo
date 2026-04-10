@@ -32,3 +32,19 @@ export const getCustomerById = async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 };
+
+// DELETE /api/customers/:id — Admin/Owner only
+export const deleteCustomer = async (req, res) => {
+  try {
+    const customer = await User.findOneAndDelete({
+      _id: req.params.id,
+      role: "CUSTOMER",
+    });
+    if (!customer)
+      return res.status(404).json({ message: "Customer not found." });
+    res.status(200).json({ message: "Customer deleted successfully." });
+  } catch (error) {
+    console.error("deleteCustomer:", error);
+    res.status(500).json({ message: "Server error." });
+  }
+};

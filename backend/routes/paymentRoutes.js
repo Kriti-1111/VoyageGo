@@ -3,12 +3,36 @@ import { auth } from "../middleware/auth.js";
 import {
   esewaInitiate,
   esewaSuccess,
+  esewaFineInitiate,
+  esewaFineSuccess,
+  khaltiInitiate,
+  khaltiVerify,
+  khaltiFinInitiate,
+  khaltiFinVerify,
+  demoPay,
+  demoFinePay,
 } from "../controllers/paymentController.js";
 
 const router = express.Router();
 
-// eSewa
-router.post("/esewa/initiate", auth, esewaInitiate); // called from frontend, needs auth
-router.get("/esewa/success", esewaSuccess); // eSewa browser redirect, no auth
+// ── eSewa — booking ───────────────────────────────────────────────────────────
+router.post("/esewa/initiate", auth, esewaInitiate);
+router.get("/esewa/success", esewaSuccess); // eSewa browser redirect (no auth)
+
+// ── eSewa — fine ──────────────────────────────────────────────────────────────
+router.post("/esewa/fine/initiate", auth, esewaFineInitiate);
+router.get("/esewa/fine/success", esewaFineSuccess); // eSewa browser redirect (no auth)
+
+// ── Khalti — booking ──────────────────────────────────────────────────────────
+router.post("/khalti/initiate", auth, khaltiInitiate);
+router.post("/khalti/verify", auth, khaltiVerify);
+
+// ── Khalti — fine ─────────────────────────────────────────────────────────────
+router.post("/khalti/fine/initiate", auth, khaltiFinInitiate);
+router.post("/khalti/fine/verify", auth, khaltiFinVerify);
+
+// ── Demo pay (FYP fallback) ───────────────────────────────────────────────────
+router.post("/demo", auth, demoPay);
+router.post("/demo/fine", auth, demoFinePay);
 
 export default router;

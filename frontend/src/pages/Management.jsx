@@ -278,20 +278,30 @@ function BookingsTable({
   bookings,
   onCashPayment,
   onCancel,
+  onDelete,
   showActions = false,
 }) {
   const [loadingId, setLoadingId] = useState(null);
   const headers = showActions
-    ? ["Customer", "Vehicle", "Status", "Payment", "Total", "Date", "Actions"]
+    ? [
+        "Customer",
+        "Vehicle",
+        "Status",
+        "Payment",
+        "Total",
+        "Date",
+        "Actions",
+        "",
+      ]
     : ["Customer", "Vehicle", "Status", "Payment", "Total", "Date"];
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f8fafc" }}>
-            {headers.map((h) => (
+            {headers.map((h, i) => (
               <th
-                key={h}
+                key={i}
                 style={{
                   padding: "10px 16px",
                   textAlign: "left",
@@ -335,14 +345,20 @@ function BookingsTable({
                 >
                   {b.customer?.name || "N/A"}
                 </td>
-                <td
-                  style={{
-                    padding: "12px 16px",
-                    fontSize: 13,
-                    color: "#334155",
-                  }}
-                >
-                  {b.vehicle?.name || "Vehicle"}
+                <td style={{ padding: "12px 16px" }}>
+                  <div
+                    style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}
+                  >
+                    {b.vehicle?.name || "—"}
+                  </div>
+                  {b.vehicle?.plateNumber && (
+                    <div
+                      style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}
+                    >
+                      {b.vehicle.plateNumber}
+                      {b.vehicle.type ? ` · ${b.vehicle.type}` : ""}
+                    </div>
+                  )}
                 </td>
                 <td style={{ padding: "12px 16px" }}>
                   <span
@@ -504,6 +520,40 @@ function BookingsTable({
                         </span>
                       )}
                     </div>
+                  </td>
+                )}
+                {showActions && (
+                  <td style={{ padding: "10px 16px" }}>
+                    {onDelete && (
+                      <button
+                        onClick={() => {
+                          if (!confirm("Permanently delete this booking?"))
+                            return;
+                          onDelete(b._id || b.id);
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          border: "1px solid #fca5a5",
+                          borderRadius: 7,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#dc2626",
+                          background: "#fef2f2",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#dc2626";
+                          e.currentTarget.style.color = "#fff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#fef2f2";
+                          e.currentTarget.style.color = "#dc2626";
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 )}
               </tr>
@@ -1475,7 +1525,16 @@ function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
                 <option value="" disabled>
                   Select…
                 </option>
-                {["Car", "Van", "Bus", "Truck"].map((o) => (
+                {[
+                  "Sedan",
+                  "Hatchback",
+                  "SUV",
+                  "Electric",
+                  "Luxury",
+                  "Offroad",
+                  "Convertible",
+                  "Hybrid",
+                ].map((o) => (
                   <option key={o} value={o}>
                     {o}
                   </option>
@@ -1782,7 +1841,16 @@ function VehiclesPanel({ isAdmin }) {
               {
                 key: "type",
                 label: "Type",
-                opts: ["Car", "Van", "Bus", "Truck"],
+                opts: [
+                  "Sedan",
+                  "Hatchback",
+                  "SUV",
+                  "Electric",
+                  "Luxury",
+                  "Offroad",
+                  "Convertible",
+                  "Hybrid",
+                ],
               },
               {
                 key: "fuelType",
@@ -2356,6 +2424,7 @@ function DriversPanel({ isAdmin }) {
   const [editingRate, setEditingRate] = useState(null); // { id, value }
   const [savingRate, setSavingRate] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [deletingId, setDeletingId] = useState(null);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -2424,6 +2493,22 @@ function DriversPanel({ isAdmin }) {
       alert(e.response?.data?.message || "Failed to save rate.");
     } finally {
       setSavingRate(null);
+    }
+  };
+
+  const deleteDriver = async (dId, name) => {
+    if (!window.confirm(`Delete driver "${name}"? This cannot be undone.`))
+      return;
+    setDeletingId(dId);
+    try {
+      await axios.delete(`${ENDPOINTS.DRIVERS}/${dId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDrivers((prev) => prev.filter((d) => (d._id || d.id) !== dId));
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to delete driver.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -2523,7 +2608,7 @@ function DriversPanel({ isAdmin }) {
                   "Availability",
                   "Rate (Rs/hr)",
                   "Status",
-                  ...(isAdmin ? ["Actions"] : []),
+                  ...(isAdmin ? ["Actions", ""] : []),
                 ].map((h) => (
                   <th
                     key={h}
@@ -2805,6 +2890,40 @@ function DriversPanel({ isAdmin }) {
                         </button>
                       </td>
                     )}
+                    {isAdmin && (
+                      <td style={{ padding: "10px 16px" }}>
+                        <button
+                          onClick={() => deleteDriver(dId, d.name)}
+                          disabled={deletingId === dId}
+                          style={{
+                            padding: "6px 12px",
+                            border: "1px solid #fca5a5",
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "#dc2626",
+                            background: "#fef2f2",
+                            cursor:
+                              deletingId === dId ? "not-allowed" : "pointer",
+                            opacity: deletingId === dId ? 0.6 : 1,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (deletingId !== dId) {
+                              e.currentTarget.style.background = "#dc2626";
+                              e.currentTarget.style.color = "#fff";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (deletingId !== dId) {
+                              e.currentTarget.style.background = "#fef2f2";
+                              e.currentTarget.style.color = "#dc2626";
+                            }
+                          }}
+                        >
+                          {deletingId === dId ? "Deleting…" : "Delete"}
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -2822,8 +2941,10 @@ function CustomersPanel() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const token = localStorage.getItem("token");
-  useEffect(() => {
+
+  const fetchCustomers = () => {
     axios
       .get(ENDPOINTS.CUSTOMERS, {
         headers: { Authorization: `Bearer ${token}` },
@@ -2831,7 +2952,27 @@ function CustomersPanel() {
       .then((r) => setCustomers(Array.isArray(r.data) ? r.data : []))
       .catch((e) => setError(e.response?.data?.message || "Failed."))
       .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    fetchCustomers();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const deleteCustomer = async (id, name) => {
+    if (!window.confirm(`Delete customer "${name}"? This cannot be undone.`))
+      return;
+    setDeletingId(id);
+    try {
+      await axios.delete(`${ENDPOINTS.CUSTOMERS}/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCustomers((prev) => prev.filter((c) => (c._id || c.id) !== id));
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to delete customer.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const filtered = customers.filter((c) => {
     const q = search.toLowerCase();
     return (
@@ -2922,7 +3063,7 @@ function CustomersPanel() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["Name", "Email", "Phone", "Joined"].map((h) => (
+                {["Name", "Email", "Phone", "Joined", ""].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -2942,80 +3083,117 @@ function CustomersPanel() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c, i) => (
-                <tr
-                  key={c._id || i}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#f8fafc")
-                  }
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                >
-                  <td style={{ padding: "12px 16px" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                      }}
-                    >
+              {filtered.map((c, i) => {
+                const id = c._id || c.id;
+                return (
+                  <tr
+                    key={id || i}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f8fafc")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "")
+                    }
+                  >
+                    <td style={{ padding: "12px 16px" }}>
                       <div
                         style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "50%",
-                          background: "linear-gradient(135deg,#10b981,#34d399)",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          color: "#fff",
-                          fontSize: "13px",
-                          fontWeight: "700",
+                          gap: "10px",
                         }}
                       >
-                        {(c.name || "C")[0].toUpperCase()}
+                        <div
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            background:
+                              "linear-gradient(135deg,#10b981,#34d399)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            fontSize: "13px",
+                            fontWeight: "700",
+                          }}
+                        >
+                          {(c.name || "C")[0].toUpperCase()}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            color: "#0f172a",
+                          }}
+                        >
+                          {c.name || "—"}
+                        </span>
                       </div>
-                      <span
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        fontSize: "13px",
+                        color: "#334155",
+                      }}
+                    >
+                      {c.email || "—"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        fontSize: "13px",
+                        color: "#334155",
+                      }}
+                    >
+                      {c.phone || "—"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        fontSize: "12px",
+                        color: "#64748b",
+                      }}
+                    >
+                      {c.createdAt
+                        ? new Date(c.createdAt).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <button
+                        onClick={() => deleteCustomer(id, c.name)}
+                        disabled={deletingId === id}
                         style={{
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "#0f172a",
+                          padding: "5px 12px",
+                          borderRadius: 7,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: "1px solid #fca5a5",
+                          background: "#fef2f2",
+                          color: "#dc2626",
+                          cursor: deletingId === id ? "not-allowed" : "pointer",
+                          opacity: deletingId === id ? 0.6 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (deletingId !== id) {
+                            e.currentTarget.style.background = "#dc2626";
+                            e.currentTarget.style.color = "#fff";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (deletingId !== id) {
+                            e.currentTarget.style.background = "#fef2f2";
+                            e.currentTarget.style.color = "#dc2626";
+                          }
                         }}
                       >
-                        {c.name || "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 16px",
-                      fontSize: "13px",
-                      color: "#334155",
-                    }}
-                  >
-                    {c.email || "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 16px",
-                      fontSize: "13px",
-                      color: "#334155",
-                    }}
-                  >
-                    {c.phone || "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "12px 16px",
-                      fontSize: "12px",
-                      color: "#64748b",
-                    }}
-                  >
-                    {c.createdAt
-                      ? new Date(c.createdAt).toLocaleDateString()
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
+                        {deletingId === id ? "Deleting…" : "Delete"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -3098,6 +3276,20 @@ export default function Management() {
       alert(e.response?.data?.message || "Failed.");
     }
   };
+  const handleDeleteBooking = async (id) => {
+    if (
+      !window.confirm("Permanently delete this booking? This cannot be undone.")
+    )
+      return;
+    try {
+      await axios.delete(`${ENDPOINTS.BOOKINGS}/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchBookings();
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to delete booking.");
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -3155,6 +3347,7 @@ export default function Management() {
                 bookings={bookings}
                 onCashPayment={handleCashPayment}
                 onCancel={handleCancel}
+                onDelete={handleDeleteBooking}
                 showActions={true}
               />
             )}

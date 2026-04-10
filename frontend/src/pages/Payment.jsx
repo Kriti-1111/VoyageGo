@@ -22,6 +22,35 @@ function fmtDate(d) {
   });
 }
 
+// eSewa v2 requires a form POST
+function submitEsewaForm(data) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = data.gateway_url;
+  const fields = {
+    amount: data.amount,
+    tax_amount: data.tax_amount,
+    total_amount: data.total_amount,
+    transaction_uuid: data.transaction_uuid,
+    product_code: data.product_code,
+    product_service_charge: 0,
+    product_delivery_charge: 0,
+    success_url: data.success_url,
+    failure_url: data.failure_url,
+    signed_field_names: "total_amount,transaction_uuid,product_code",
+    signature: data.signature,
+  };
+  Object.entries(fields).forEach(([k, v]) => {
+    const i = document.createElement("input");
+    i.type = "hidden";
+    i.name = k;
+    i.value = v;
+    form.appendChild(i);
+  });
+  document.body.appendChild(form);
+  form.submit();
+}
+
 export default function Payment() {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -30,12 +59,13 @@ export default function Payment() {
   const [booking, setBooking] = useState(null);
   const [loadingB, setLoadingB] = useState(true);
   const [bookingErr, setBookingErr] = useState(null);
-  const [paying, setPaying] = useState(false);
-  const [demoPaying, setDemoPaying] = useState(false);
+  const [paying, setPaying] = useState(null); // "esewa"|"khalti"|"demo"|null
   const [toast, setToast] = useState(null);
-  const [showTnC, setShowTnC] = useState(false); // T&C dialog
-  const [tnCAccepted, setTnCAccepted] = useState(false); // checkbox
-  const [pendingAction, setPendingAction] = useState(null); // "esewa" | "demo"
+
+  // T&C dialog
+  const [showTnC, setShowTnC] = useState(false);
+  const [tnCAccepted, setTnCAccepted] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
 
   useEffect(() => {
     if (!user) {
@@ -54,77 +84,71 @@ export default function Payment() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
-  // ── eSewa ─────────────────────────────────────────────────────────────────
-  async function handleEsewa() {
-    // Show T&C dialog first
-    setPendingAction("esewa");
+  // Show T&C first, then proceed
+  function requestPay(action) {
+    setPendingAction(action);
     setTnCAccepted(false);
     setShowTnC(true);
   }
-  async function proceedEsewa() {
+
+  async function confirmAndPay() {
+    if (!tnCAccepted) return;
     setShowTnC(false);
-    setPaying(true);
+    if (pendingAction === "esewa") await proceedEsewa();
+    if (pendingAction === "khalti") await proceedKhalti();
+    if (pendingAction === "demo") await proceedDemo();
+  }
+
+  async function proceedEsewa() {
+    setPaying("esewa");
     try {
       const { data } = await axios.post(
         `${API}/api/pay/esewa/initiate`,
         { bookingId },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
-
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = data.gateway_url;
-
-      const fields = {
-        amount: data.amount,
-        tax_amount: data.tax_amount,
-        total_amount: data.total_amount,
-        transaction_uuid: data.transaction_uuid,
-        product_code: data.product_code,
-        product_service_charge: 0,
-        product_delivery_charge: 0,
-        success_url: data.success_url,
-        failure_url: data.failure_url,
-        signed_field_names: "total_amount,transaction_uuid,product_code",
-        signature: data.signature,
-      };
-
-      Object.entries(fields).forEach(([key, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
+      sessionStorage.setItem("token", getToken());
+      submitEsewaForm(data);
     } catch (e) {
-      showToast(e.response?.data?.message || "eSewa payment failed.", "error");
-      setPaying(false);
+      showToast(
+        e.response?.data?.message || "eSewa failed. Try Demo Pay.",
+        "error",
+      );
+      setPaying(null);
     }
   }
 
-  // ── Demo pay ───────────────────────────────────────────────────────────────
-  async function handleDemoPay() {
-    setPendingAction("demo");
-    setTnCAccepted(false);
-    setShowTnC(true);
+  async function proceedKhalti() {
+    setPaying("khalti");
+    try {
+      const { data } = await axios.post(
+        `${API}/api/pay/khalti/initiate`,
+        { bookingId },
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      sessionStorage.setItem("token", getToken());
+      window.location.href = data.payment_url;
+    } catch (e) {
+      showToast(
+        e.response?.data?.message || "Khalti failed. Try Demo Pay.",
+        "error",
+      );
+      setPaying(null);
+    }
   }
-  async function proceedDemoPay() {
-    setShowTnC(false);
-    setDemoPaying(true);
+
+  async function proceedDemo() {
+    setPaying("demo");
     try {
       await axios.post(
-        `${API}/api/bookings/${bookingId}/demo-pay`,
-        {},
+        `${API}/api/pay/demo`,
+        { bookingId },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       navigate("/customer");
     } catch (e) {
       showToast(e.response?.data?.message || "Demo pay failed.", "error");
-    } finally {
-      setDemoPaying(false);
+      setPaying(null);
     }
   }
 
@@ -143,12 +167,11 @@ export default function Payment() {
           justifyContent: "center",
         }}
       >
-        <p style={{ color: "#64748b", fontFamily: "DM Sans,system-ui" }}>
+        <p style={{ color: "#64748b", fontFamily: "'DM Sans',system-ui" }}>
           Loading booking…
         </p>
       </div>
     );
-
   if (bookingErr)
     return (
       <div
@@ -190,18 +213,11 @@ export default function Payment() {
       </div>
     );
 
-  const busy = paying || demoPaying;
-
-  // Confirmed T&C → proceed with the chosen action
-  async function confirmTnC() {
-    if (!tnCAccepted) return;
-    if (pendingAction === "esewa") await proceedEsewa();
-    else await proceedDemoPay();
-  }
+  const busy = !!paying;
 
   return (
     <>
-      <style>{`* { box-sizing: border-box; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`* { box-sizing:border-box; } @keyframes spin { to { transform:rotate(360deg); } }`}</style>
       <div
         style={{
           maxWidth: 520,
@@ -298,26 +314,24 @@ export default function Payment() {
             <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
               Total
             </span>
-            {/* Changed from #60BB46 (eSewa green) → #F97316 (system blue) */}
             <span style={{ fontSize: 22, fontWeight: 800, color: "#F97316" }}>
               Rs {(booking?.totalPrice || 0).toLocaleString()}
             </span>
           </div>
         </div>
 
-        {/* Payment options */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* ── eSewa ── */}
+          {/* ── Khalti ── */}
           <button
-            onClick={handleEsewa}
+            onClick={() => requestPay("khalti")}
             disabled={busy}
             style={{
               width: "100%",
-              padding: "16px 18px",
+              padding: "15px 18px",
               borderRadius: 12,
               border: "none",
               cursor: busy ? "not-allowed" : "pointer",
-              background: busy && paying ? "#4ea336" : "#60BB46",
+              background: paying === "khalti" ? "#4a2280" : "#5C2D91",
               color: "#fff",
               fontSize: 15,
               fontWeight: 700,
@@ -325,7 +339,77 @@ export default function Payment() {
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              opacity: busy && !paying ? 0.5 : 1,
+              opacity: busy && paying !== "khalti" ? 0.5 : 1,
+              transition: "background 0.15s",
+              boxShadow: busy ? "none" : "0 4px 14px rgba(92,45,145,0.35)",
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) e.currentTarget.style.background = "#4a2280";
+            }}
+            onMouseLeave={(e) => {
+              if (!busy) e.currentTarget.style.background = "#5C2D91";
+            }}
+          >
+            {paying === "khalti" ? (
+              <>
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    border: "2.5px solid rgba(255,255,255,0.35)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Redirecting to Khalti…
+              </>
+            ) : (
+              <>
+                <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
+                  <rect
+                    width="40"
+                    height="40"
+                    rx="10"
+                    fill="white"
+                    fillOpacity=".15"
+                  />
+                  <text
+                    x="50%"
+                    y="57%"
+                    dominantBaseline="middle"
+                    textAnchor="middle"
+                    fontSize="18"
+                    fontWeight="900"
+                    fill="white"
+                  >
+                    K
+                  </text>
+                </svg>
+                Pay Rs {(booking?.totalPrice || 0).toLocaleString()} with Khalti
+              </>
+            )}
+          </button>
+
+          {/* ── eSewa ── */}
+          <button
+            onClick={() => requestPay("esewa")}
+            disabled={busy}
+            style={{
+              width: "100%",
+              padding: "15px 18px",
+              borderRadius: 12,
+              border: "none",
+              cursor: busy ? "not-allowed" : "pointer",
+              background: paying === "esewa" ? "#4ea336" : "#60BB46",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              opacity: busy && paying !== "esewa" ? 0.5 : 1,
               transition: "background 0.15s",
               boxShadow: busy ? "none" : "0 4px 14px rgba(96,187,70,0.35)",
             }}
@@ -336,7 +420,7 @@ export default function Payment() {
               if (!busy) e.currentTarget.style.background = "#60BB46";
             }}
           >
-            {paying ? (
+            {paying === "esewa" ? (
               <>
                 <span
                   style={{
@@ -370,33 +454,35 @@ export default function Payment() {
             )}
           </button>
 
-          {/* eSewa test credentials */}
-          <div
-            style={{
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: 9,
-              padding: "10px 14px",
-            }}
-          >
-            <p
+          {/* Test credentials */}
+          {!busy && (
+            <div
               style={{
-                margin: "0 0 4px",
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#166534",
-                textTransform: "uppercase",
-                letterSpacing: "0.4px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 9,
+                padding: "10px 14px",
               }}
             >
-              eSewa test credentials
-            </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#15803d" }}>
-              Number: <strong>9806800001</strong> &nbsp;·&nbsp; Password:{" "}
-              <strong>Nepal@123</strong> &nbsp;·&nbsp; OTP:{" "}
-              <strong>123456</strong>
-            </p>
-          </div>
+              <p
+                style={{
+                  margin: "0 0 4px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.4px",
+                }}
+              >
+                Test credentials
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+                <strong>Khalti:</strong> 9800000001 · MPIN: 1111 · OTP: 987654
+                &nbsp;|&nbsp;
+                <strong>eSewa:</strong> 9806800001 · Nepal@123 · OTP: 123456
+              </p>
+            </div>
+          )}
 
           {/* Divider */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -407,9 +493,9 @@ export default function Payment() {
             <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
           </div>
 
-          {/* ── Demo Pay ── */}
+          {/* Demo Pay */}
           <button
-            onClick={handleDemoPay}
+            onClick={() => requestPay("demo")}
             disabled={busy}
             style={{
               width: "100%",
@@ -425,7 +511,7 @@ export default function Payment() {
               alignItems: "center",
               justifyContent: "center",
               gap: 8,
-              opacity: busy && !demoPaying ? 0.5 : 1,
+              opacity: busy && paying !== "demo" ? 0.5 : 1,
               transition: "all 0.15s",
             }}
             onMouseEnter={(e) => {
@@ -441,7 +527,7 @@ export default function Payment() {
               }
             }}
           >
-            {demoPaying ? (
+            {paying === "demo" ? (
               <>
                 <span
                   style={{
@@ -456,10 +542,9 @@ export default function Payment() {
                 Processing…
               </>
             ) : (
-              <>🔧 Demo Pay — simulate eSewa (FYP use only)</>
+              <>🔧 Demo Pay — bypass gateway (FYP use only)</>
             )}
           </button>
-
           <p
             style={{
               margin: 0,
@@ -468,33 +553,13 @@ export default function Payment() {
               textAlign: "center",
             }}
           >
-            Demo Pay bypasses the gateway and directly activates your booking —
-            use if eSewa sandbox is unavailable.
+            Demo Pay activates booking directly — use only if gateways are
+            unavailable
           </p>
         </div>
       </div>
 
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 9999,
-            padding: "12px 20px",
-            borderRadius: 12,
-            background: toast.type === "error" ? "#dc2626" : "#059669",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-          }}
-        >
-          {toast.msg}
-        </div>
-      )}
-
-      {/* ── Terms & Conditions Dialog ── */}
+      {/* ── T&C Dialog ── */}
       {showTnC && (
         <div
           style={{
@@ -521,7 +586,6 @@ export default function Payment() {
               overflow: "hidden",
             }}
           >
-            {/* Header */}
             <div
               style={{
                 padding: "20px 24px 16px",
@@ -544,12 +608,10 @@ export default function Payment() {
                   Rental Agreement & Fine Policy
                 </h2>
                 <p style={{ margin: 0, fontSize: 12, color: "#94a3b8" }}>
-                  Please read carefully before proceeding to payment
+                  Please read before proceeding to payment
                 </p>
               </div>
             </div>
-
-            {/* Content — scrollable */}
             <div
               style={{
                 overflowY: "auto",
@@ -569,96 +631,55 @@ export default function Payment() {
                   marginBottom: 18,
                 }}
               >
-                <p
-                  style={{
-                    margin: 0,
-                    fontWeight: 700,
-                    color: "#EA580C",
-                    fontSize: 14,
-                  }}
-                >
+                <p style={{ margin: 0, fontWeight: 700, color: "#EA580C" }}>
                   ⚠️ Late return charges apply
                 </p>
                 <p
                   style={{ margin: "4px 0 0", color: "#9a3412", fontSize: 13 }}
                 >
-                  You are responsible for returning the vehicle on time. Late
-                  returns will be charged automatically.
+                  You are responsible for returning the vehicle on time.
                 </p>
               </div>
-
               <p>
                 <strong>1. Grace Period</strong>
                 <br />
                 You are given a <strong>30-minute grace period</strong> after
-                your scheduled return time at no extra cost. Delays beyond 30
-                minutes will incur late return charges.
+                your scheduled return time at no extra cost.
               </p>
-
               <p>
-                <strong>2. Late Return Fine Structure</strong>
-                <br />
-                If you return the vehicle late, the following charges apply:
+                <strong>2. Late Return Fine</strong>
               </p>
               <ul style={{ paddingLeft: 20, margin: "8px 0 12px" }}>
                 <li style={{ marginBottom: 6 }}>
-                  <strong>1–6 hours late:</strong> Charged at the vehicle's
-                  standard <strong>hourly rate</strong> for each late hour
-                  (rounded up). If a driver was included, the driver's hourly
-                  rate is also added per late hour.
+                  <strong>1–6 hours late:</strong> Charged at the vehicle's{" "}
+                  <strong>hourly rate per late hour</strong> (rounded up).
+                  Driver's hourly rate also added if applicable.
                 </li>
                 <li style={{ marginBottom: 6 }}>
-                  <strong>More than 6 hours late:</strong> A{" "}
-                  <strong>full daily rate</strong> is charged (vehicle daily
-                  rate + driver daily rate if applicable), regardless of how
-                  many extra hours were taken.
+                  <strong>More than 6 hours late:</strong> One{" "}
+                  <strong>full daily rate</strong> charged (vehicle + driver if
+                  applicable).
                 </li>
               </ul>
-
               <p>
-                <strong>3. How daily rates are calculated</strong>
+                <strong>3. Daily Rate Basis</strong>
                 <br />
-                The daily rate used for late fines is locked in at the time of
-                your booking:
+                1–6 day bookings: hourly × 24 × 0.80 &nbsp;·&nbsp; 7–30 day
+                bookings: hourly × 24 × 0.70
               </p>
-              <ul style={{ paddingLeft: 20, margin: "8px 0 12px" }}>
-                <li style={{ marginBottom: 4 }}>
-                  1–6 day bookings: daily rate ={" "}
-                  <strong>hourly rate × 24 × 0.80</strong> (20% off)
-                </li>
-                <li style={{ marginBottom: 4 }}>
-                  7–30 day bookings: daily rate ={" "}
-                  <strong>hourly rate × 24 × 0.70</strong> (30% off)
-                </li>
-              </ul>
-
               <p>
-                <strong>4. Payment of fines</strong>
+                <strong>4. Fine Payment</strong>
                 <br />
-                Fine amounts are calculated when you submit the vehicle return.
-                The total fine will be displayed before you confirm the return.
-                VoyageGo reserves the right to collect outstanding fines before
-                releasing the vehicle for future bookings.
+                If a fine is incurred, you will be redirected to pay it via
+                Khalti or eSewa before the booking is fully closed.
               </p>
-
               <p>
-                <strong>5. Vehicle condition</strong>
+                <strong>5. Vehicle Condition</strong>
                 <br />
-                You are encouraged to use the optional{" "}
-                <em>"Report vehicle condition"</em> feature on your active
-                booking to document any pre-existing damage. Unreported damage
-                discovered at return may be subject to additional charges at
-                management discretion.
+                Use the optional condition report to document pre-existing
+                damage. Unreported damage at return may incur additional
+                charges.
               </p>
-
-              <p>
-                <strong>6. Cancellation</strong>
-                <br />
-                Bookings in <em>Pending</em> or <em>Confirmed</em> status may be
-                cancelled at no charge. Active trips cannot be cancelled — the
-                return process must be completed.
-              </p>
-
               <p
                 style={{
                   margin: "16px 0 0",
@@ -670,12 +691,10 @@ export default function Payment() {
                   fontSize: 13,
                 }}
               >
-                ✅ By proceeding to payment, you agree to these terms and
-                acknowledge the fine structure described above.
+                ✅ By proceeding, you agree to these terms and the fine
+                structure above.
               </p>
             </div>
-
-            {/* Footer — checkbox + buttons */}
             <div
               style={{
                 padding: "16px 24px",
@@ -709,9 +728,7 @@ export default function Payment() {
                   style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}
                 >
                   I have read and agree to the{" "}
-                  <strong>Rental Agreement & Fine Policy</strong>. I understand
-                  that late returns beyond the 30-minute grace period will be
-                  charged at the rates above.
+                  <strong>Rental Agreement & Fine Policy</strong>.
                 </span>
               </label>
               <div style={{ display: "flex", gap: 10 }}>
@@ -732,7 +749,7 @@ export default function Payment() {
                   Cancel
                 </button>
                 <button
-                  onClick={confirmTnC}
+                  onClick={confirmAndPay}
                   disabled={!tnCAccepted}
                   style={{
                     flex: 2,
@@ -746,16 +763,35 @@ export default function Payment() {
                     fontSize: 14,
                     fontWeight: 700,
                     cursor: tnCAccepted ? "pointer" : "not-allowed",
-                    transition: "all 0.15s",
                   }}
                 >
                   {tnCAccepted
-                    ? "I agree — Proceed to payment →"
+                    ? "I agree — Proceed →"
                     : "Check the box above to proceed"}
                 </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 9999,
+            padding: "12px 20px",
+            borderRadius: 12,
+            background: toast.type === "error" ? "#dc2626" : "#059669",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 600,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+          }}
+        >
+          {toast.msg}
         </div>
       )}
     </>

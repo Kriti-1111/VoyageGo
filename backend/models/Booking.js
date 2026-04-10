@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
 export const BOOKING_STATUS = {
-  PENDING_PAYMENT: "PendingPayment",
-  PENDING_DRIVER: "PendingDriver",
-  CONFIRMED: "Confirmed",
-  ACTIVE: "Active",
+  PENDING_PAYMENT: "PendingPayment", // Self-drive: waiting for customer to pay
+  PENDING_DRIVER: "PendingDriver", // With-driver: waiting for driver to accept
+  CONFIRMED: "Confirmed", // Driver accepted (with-driver) — waiting for payment
+  ACTIVE: "Active", // Trip in progress
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };
@@ -32,18 +32,22 @@ const bookingSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Self-drive vs with-driver split
     requiresDriver: { type: Boolean, default: true },
 
+    // Pickup: customer collects vehicle, or vehicle delivered to them
     pickupType: { type: String, enum: ["self", "delivery"], default: "self" },
-    pickupLocation: { type: String, default: "" },
+    pickupLocation: { type: String, default: "" }, // only used when pickupType = "delivery"
 
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
 
+    // Price breakdown
     vehicleCost: { type: Number, default: 0 },
     driverCost: { type: Number, default: 0 },
     totalPrice: { type: Number, required: true, min: 0 },
 
+    // Stored at booking creation for consistent fine calculation
     mode: { type: String, enum: ["hourly", "daily"], default: "hourly" },
     vehicleDailyRate: { type: Number, default: 0 },
     driverDailyRate: { type: Number, default: 0 },
@@ -55,8 +59,10 @@ const bookingSchema = new mongoose.Schema(
     },
 
     notes: { type: String, default: "" },
+
     rejectedDrivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+    // Payment
     paymentStatus: {
       type: String,
       enum: Object.values(PAYMENT_STATUS),
@@ -64,7 +70,7 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Card", "Wallet", "Bank", "Cash", "eSewa", null],
+      enum: ["Card", "Wallet", "Bank", "Cash", "eSewa", "Khalti", null],
       default: null,
     },
     paymentDetails: {
@@ -76,22 +82,28 @@ const bookingSchema = new mongoose.Schema(
     },
     paidAt: { type: Date, default: null },
 
+    // Pre-trip photos (optional)
     preTrip: {
       photos: { type: [String], default: [] },
       submittedAt: { type: Date, default: null },
     },
+
+    // Post-trip
     postTrip: {
       submittedAt: { type: Date, default: null },
     },
 
+    // Fine breakdown
     vehicleFine: { type: Number, default: 0 },
     driverFine: { type: Number, default: 0 },
     fine: { type: Number, default: 0 },
+
     returnedAt: { type: Date, default: null },
 
-    // ── eSewa ──
-    esewaTransactionUuid: { type: String, default: null },
-    esewaTransactionCode: { type: String, default: null },
+    // Fine payment tracking — set when fine > 0 at return
+    finePaid: { type: Boolean, default: false },
+    finePaidAt: { type: Date, default: null },
+    finePaidVia: { type: String, default: null }, // 'eSewa' | 'Khalti' | 'Demo'
   },
   { timestamps: true },
 );

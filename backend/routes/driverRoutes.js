@@ -1,5 +1,6 @@
 import express from "express";
 import { auth, admin, driver } from "../middleware/auth.js";
+import User from "../models/User.js";
 import {
   getDriverProfile,
   updateAvailability,
@@ -50,18 +51,17 @@ router.get("/:id/availability", async (req, res) => {
   }
 });
 
-//for driver fare
-router.patch("/:id/rate", auth, admin, async (req, res) => {
+// Admin: delete driver
+router.delete("/:id", auth, admin, async (req, res) => {
   try {
-    const { driverRatePerHour } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { driverRatePerHour },
-      { new: true },
-    ).select("name driverRatePerHour");
-    if (!user) return res.status(404).json({ message: "Driver not found." });
-    res.json({ driver: user });
+    const deleted = await User.findOneAndDelete({
+      _id: req.params.id,
+      role: "DRIVER",
+    });
+    if (!deleted) return res.status(404).json({ message: "Driver not found." });
+    res.status(200).json({ message: "Driver deleted successfully." });
   } catch (e) {
+    console.error("deleteDriver:", e);
     res.status(500).json({ message: "Server error." });
   }
 });

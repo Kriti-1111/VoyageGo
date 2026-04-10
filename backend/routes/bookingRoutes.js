@@ -39,7 +39,7 @@ router.post("/:id/demo-pay", auth, async (req, res) => {
     if (booking.paymentStatus === "Paid")
       return res.status(400).json({ message: "Already paid." });
 
-    booking.paymentMethod = "Esewa";
+    booking.paymentMethod = "Khalti";
     booking.paymentStatus = "Paid";
     booking.paidAt = new Date();
     booking.paymentDetails.reference = "DEMO-" + Date.now();
@@ -72,6 +72,19 @@ router.patch("/:id/driver-response", auth, driver, driverResponse);
 router.get("/", auth, admin, getAllBookings);
 router.patch("/:id/cash-payment", auth, admin, adminCashPayment);
 router.patch("/:id/admin-cancel", auth, admin, adminCancelBooking);
+
+// ── Admin: hard delete booking ────────────────────────────────────────────────
+router.delete("/:id", auth, admin, async (req, res) => {
+  try {
+    const booking = await Booking.findByIdAndDelete(req.params.id);
+    if (!booking)
+      return res.status(404).json({ message: "Booking not found." });
+    res.status(200).json({ message: "Booking deleted successfully." });
+  } catch (e) {
+    console.error("deleteBooking:", e);
+    res.status(500).json({ message: "Server error." });
+  }
+});
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 router.get("/:id", auth, getBookingById);

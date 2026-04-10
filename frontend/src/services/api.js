@@ -5,7 +5,9 @@ export const ENDPOINTS = {
   LOGIN: `${BASE_URL}/api/auth/login`,
   REGISTER: `${BASE_URL}/api/auth/register`,
   ME: `${BASE_URL}/api/auth/me`,
-  CUSTOMERS: `${BASE_URL}/api/auth/customers`,
+
+  // Customers (standalone route, not under /auth)
+  CUSTOMERS: `${BASE_URL}/api/customers`,
 
   // Bookings
   BOOKINGS: `${BASE_URL}/api/bookings`,

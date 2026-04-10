@@ -359,7 +359,16 @@ function Sidebar({
   onClear,
   counts,
 }) {
-  const types = ["Car", "Van"];
+  const types = [
+    "Sedan",
+    "Hatchback",
+    "SUV",
+    "Electric",
+    "Luxury",
+    "Offroad",
+    "Convertible",
+    "Hybrid",
+  ];
   const priceRanges = [
     { label: "Under Rs. 200/hr", key: "under200" },
     { label: "Rs. 200 - Rs. 500/hr", key: "200to500" },
