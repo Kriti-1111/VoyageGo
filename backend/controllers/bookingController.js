@@ -2,6 +2,7 @@ import Booking, { BOOKING_STATUS, PAYMENT_STATUS } from "../models/Booking.js";
 import Vehicle from "../models/Vehicle.js";
 import User from "../models/User.js";
 import Notification, { NOTIF_TYPES } from "../models/Notification.js";
+import bcrypt from "bcrypt";
 
 // ── Notification helper ───────────────────────────────────────────────────────
 async function notify({ recipient, type, title, message, booking }) {
@@ -203,6 +204,7 @@ export const createBooking = async (req, res) => {
       requiresDriver = true, // NEW: false = self-drive
       pickupType = "self", // NEW: "self" | "delivery"
       pickupLocation = "", // NEW: address if delivery
+      customerId, // NEW: for walk-in bookings by admin
     } = req.body;
 
     if (!["hourly", "daily"].includes(mode)) {
@@ -337,8 +339,13 @@ export const createBooking = async (req, res) => {
       initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
     }
 
+    let finalCustomerId = req.user._id;
+    if (["ADMIN", "OWNER", "STAFF"].includes(req.user.role) && customerId) {
+      finalCustomerId = customerId;
+    }
+
     const booking = await Booking.create({
-      customer: req.user._id,
+      customer: finalCustomerId,
       vehicle: vehicleId,
       driver: assignedDriver,
       requiresDriver: Boolean(requiresDriver),
@@ -367,6 +374,172 @@ export const createBooking = async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Create Walk-in Booking
+// POST /api/bookings/walkin
+// ─────────────────────────────────────────────────────────────────────────────
+export const createWalkInBooking = async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      vehicleId,
+      startDate,
+      endDate,
+      notes,
+      driverId,
+      mode = "hourly",
+      requiresDriver = true,
+      pickupType = "self",
+      pickupLocation = "",
+      paymentMethod = "Cash",
+    } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ message: "Name and phone are required for a walk-in customer." });
+    }
+    
+    if (!["hourly", "daily"].includes(mode)) {
+      return res.status(400).json({ message: 'mode must be "hourly" or "daily".' });
+    }
+    
+    if (!vehicleId || !startDate || !endDate) {
+      return res.status(400).json({ message: "vehicleId, startDate, and endDate are required." });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (end <= start)
+      return res.status(400).json({ message: "End date must be after start date." });
+
+    const vehicle = await Vehicle.findById(vehicleId).populate("drivers");
+    if (!vehicle)
+      return res.status(404).json({ message: "Vehicle not found." });
+    if (!vehicle.isActive)
+      return res.status(400).json({ message: "This vehicle is not available." });
+
+    // Vehicle conflict check
+    const vehicleConflict = await Booking.findOne({
+      vehicle: vehicleId,
+      status: {
+        $in: [
+          BOOKING_STATUS.PENDING_PAYMENT,
+          BOOKING_STATUS.PENDING_DRIVER,
+          BOOKING_STATUS.CONFIRMED,
+          BOOKING_STATUS.ACTIVE,
+        ],
+      },
+      startDate: { $lt: end },
+      endDate: { $gt: start },
+    });
+    if (vehicleConflict) {
+      return res.status(409).json({ message: "Vehicle is already booked for this time period." });
+    }
+
+    let assignedDriver = null;
+    let driverRatePerHour = 0;
+
+    if (requiresDriver) {
+      const driverPool = (vehicle.drivers || []).map((d) => d._id || d);
+      if (driverId) {
+        const driverConflict = await Booking.findOne({
+          driver: driverId,
+          status: {
+            $in: [
+              BOOKING_STATUS.PENDING_DRIVER,
+              BOOKING_STATUS.CONFIRMED,
+              BOOKING_STATUS.ACTIVE,
+            ],
+          },
+          startDate: { $lt: end },
+          endDate: { $gt: start },
+        });
+        if (driverConflict) {
+          return res.status(409).json({ message: "The selected driver is not available for this time." });
+        }
+        assignedDriver = driverId;
+      } else if (driverPool.length > 0) {
+        assignedDriver = await findAvailableDriver(driverPool, start, end);
+        if (!assignedDriver) {
+          return res.status(400).json({ message: "No drivers available for this time. Choose a different time or select a driver manually." });
+        }
+      }
+
+      if (assignedDriver) {
+        const driverDoc = await User.findById(assignedDriver).select("driverRatePerHour");
+        driverRatePerHour = driverDoc?.driverRatePerHour || 0;
+      }
+    }
+
+    const pricing = calculatePrice(
+      vehicle.pricePerHour,
+      start,
+      end,
+      driverRatePerHour,
+      mode,
+    );
+    if (!pricing) {
+      return res.status(400).json({ message: "Invalid booking duration." });
+    }
+
+    // 1. Get or Create Guest Customer
+    const guestEmail = email || `walkin_${Date.now()}@voyagego.local`;
+    let guestUser = await User.findOne({ email: guestEmail });
+    
+    if (!guestUser) {
+      const tempPassword = await bcrypt.hash(`walkin_${Date.now()}`, 10);
+      guestUser = await User.create({
+        name,
+        phone,
+        email: guestEmail,
+        password: tempPassword,
+        role: "CUSTOMER",
+        isWalkIn: true
+      });
+    }
+
+    let initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
+    if (requiresDriver) {
+       initialStatus = BOOKING_STATUS.PENDING_DRIVER;
+    }
+
+    const booking = await Booking.create({
+      customer: guestUser._id,
+      vehicle: vehicleId,
+      driver: assignedDriver,
+      requiresDriver: Boolean(requiresDriver),
+      pickupType,
+      pickupLocation: pickupType === "delivery" ? pickupLocation.trim() : "",
+      startDate: start,
+      endDate: end,
+      mode: pricing.mode,
+      vehicleCost: pricing.vehicleCost,
+      driverCost: pricing.driverCost,
+      totalPrice: pricing.total,
+      vehicleDailyRate: pricing.vehicleDailyRate,
+      driverDailyRate: pricing.driverDailyRate,
+      notes: notes || "",
+      status: initialStatus,
+      paymentMethod: null,
+      paymentStatus: PAYMENT_STATUS.UNPAID,
+      paidAt: null
+    });
+
+    const populated = await Booking.findById(booking._id)
+      .populate("customer", "name email phone")
+      .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
+      .populate("driver", "name email phone driverRatePerHour");
+
+    res.status(201).json(populated);
+  } catch (error) {
+    console.error("createWalkInBooking:", error);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DRIVER: Accept or Reject

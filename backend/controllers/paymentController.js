@@ -120,7 +120,7 @@ export const esewaInitiate = async (req, res) => {
       return res.status(400).json({ message: "Invalid booking status." });
 
     const amt = booking.totalPrice;
-    const txnUuid = `TXN-${bookingId}-${Date.now()}`;
+    const txnUuid = `TXN${bookingId}${Date.now()}`;
 
     res.json({
       gateway_url: ESEWA_FORM_URL,
@@ -135,6 +135,44 @@ export const esewaInitiate = async (req, res) => {
     });
   } catch (e) {
     console.error("esewaInitiate:", e);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+// POST /api/pay/esewa/admin-initiate
+export const esewaAdminInitiate = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    const booking = await Booking.findById(bookingId);
+    if (!booking)
+      return res.status(404).json({ message: "Booking not found." });
+    if (!["ADMIN", "OWNER", "STAFF"].includes(req.user.role))
+      return res.status(403).json({ message: "Not authorised." });
+    if (booking.paymentStatus === PAYMENT_STATUS.PAID)
+      return res.status(400).json({ message: "Already paid." });
+    if (
+      [BOOKING_STATUS.CANCELLED, BOOKING_STATUS.COMPLETED].includes(
+        booking.status,
+      )
+    )
+      return res.status(400).json({ message: "Invalid booking status." });
+
+    const amt = booking.totalPrice;
+    const txnUuid = `TXN${bookingId}${Date.now()}`;
+
+    res.json({
+      gateway_url: ESEWA_FORM_URL,
+      amount: amt,
+      tax_amount: 0,
+      total_amount: amt,
+      transaction_uuid: txnUuid,
+      product_code: ESEWA_PRODUCT_CODE,
+      signature: esewaSignature(amt, txnUuid),
+      success_url: `${BACKEND_URL}/api/pay/esewa/success`,
+      failure_url: `${FRONTEND_URL}/payment/esewa/return?status=failed&bookingId=${bookingId}`,
+    });
+  } catch (e) {
+    console.error("esewaAdminInitiate:", e);
     res.status(500).json({ message: "Server error." });
   }
 };
@@ -157,8 +195,13 @@ export const esewaSuccess = async (req, res) => {
     if (status !== "COMPLETE")
       return res.redirect(`${FRONTEND_URL}/payment/esewa/return?status=failed`);
 
-    // Find booking by uuid prefix TXN-{bookingId}-{timestamp}
-    const bookingId = transaction_uuid.split("-")[1];
+    let bookingId;
+    if (transaction_uuid.startsWith("TXN-")) {
+      bookingId = transaction_uuid.split("-")[1]; // old format
+    } else {
+      // new format: TXN{24charMongoId}{timestamp}
+      bookingId = transaction_uuid.slice(3, 27); // "TXN" = 3 chars, MongoDB ID = 24 chars
+    }
     const booking = await markBookingPaid(bookingId, "eSewa", transaction_code);
     if (!booking)
       return res.redirect(`${FRONTEND_URL}/payment/esewa/return?status=failed`);
@@ -191,7 +234,7 @@ export const esewaFineInitiate = async (req, res) => {
       return res.status(400).json({ message: "Fine already paid." });
 
     const amt = booking.fine;
-    const txnUuid = `FINE-${bookingId}-${Date.now()}`;
+    const txnUuid = `FINE${bookingId}${Date.now()}`;
 
     res.json({
       gateway_url: ESEWA_FORM_URL,
@@ -228,8 +271,13 @@ export const esewaFineSuccess = async (req, res) => {
     if (status !== "COMPLETE")
       return res.redirect(`${FRONTEND_URL}/payment/esewa/return?status=failed`);
 
-    // FINE-{bookingId}-{timestamp}
-    const bookingId = transaction_uuid.split("-")[1];
+    let bookingId;
+    if (transaction_uuid.startsWith("FINE-")) {
+      bookingId = transaction_uuid.split("-")[1]; // old format
+    } else {
+      // new format: FINE{24charMongoId}{timestamp}
+      bookingId = transaction_uuid.slice(4, 28); // "FINE" = 4 chars, MongoDB ID = 24 chars
+    }
     const booking = await markFinePaid(bookingId, "eSewa", transaction_code);
     if (!booking)
       return res.redirect(`${FRONTEND_URL}/payment/esewa/return?status=failed`);
@@ -441,6 +489,38 @@ export const demoPay = async (req, res) => {
     }
     await booking.save();
     res.json({ message: "Demo payment recorded.", booking });
+  } catch (e) {
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// WALK-IN CASH PAY
+// ═════════════════════════════════════════════════════════════════════════════
+export const walkinCashPay = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: "Not found." });
+    
+    if (!["ADMIN", "OWNER", "STAFF"].includes(req.user.role))
+      return res.status(403).json({ message: "Not authorised." });
+
+    booking.paymentMethod = "Cash";
+    booking.paymentStatus = PAYMENT_STATUS.PAID;
+    booking.paidAt = new Date();
+    booking.status = BOOKING_STATUS.ACTIVE;
+
+    await booking.save();
+    
+    // Optionally alert the customer if needed, but not required for walkin
+    
+    const updated = await Booking.findById(booking._id)
+      .populate("customer", "name email phone")
+      .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
+      .populate("driver", "name email phone driverRatePerHour");
+
+    res.json({ message: "Walk-in cash payment recorded.", booking: updated });
   } catch (e) {
     res.status(500).json({ message: "Server error." });
   }

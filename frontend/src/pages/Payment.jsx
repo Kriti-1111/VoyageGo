@@ -321,17 +321,20 @@ export default function Payment() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* ── Khalti ── */}
+          {/* ── Demo Pay — Primary for FYP ── */}
           <button
-            onClick={() => requestPay("khalti")}
+            onClick={() => requestPay("demo")}
             disabled={busy}
             style={{
               width: "100%",
-              padding: "15px 18px",
+              padding: "16px 18px",
               borderRadius: 12,
               border: "none",
               cursor: busy ? "not-allowed" : "pointer",
-              background: paying === "khalti" ? "#4a2280" : "#5C2D91",
+              background:
+                paying === "demo"
+                  ? "#EA580C"
+                  : "linear-gradient(135deg,#F97316,#EA580C)",
               color: "#fff",
               fontSize: 15,
               fontWeight: 700,
@@ -339,18 +342,18 @@ export default function Payment() {
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              opacity: busy && paying !== "khalti" ? 0.5 : 1,
-              transition: "background 0.15s",
-              boxShadow: busy ? "none" : "0 4px 14px rgba(92,45,145,0.35)",
+              opacity: busy && paying !== "demo" ? 0.5 : 1,
+              transition: "all 0.15s",
+              boxShadow: busy ? "none" : "0 4px 16px rgba(249,115,22,0.35)",
             }}
             onMouseEnter={(e) => {
-              if (!busy) e.currentTarget.style.background = "#4a2280";
+              if (!busy) e.currentTarget.style.opacity = "0.9";
             }}
             onMouseLeave={(e) => {
-              if (!busy) e.currentTarget.style.background = "#5C2D91";
+              if (!busy) e.currentTarget.style.opacity = "1";
             }}
           >
-            {paying === "khalti" ? (
+            {paying === "demo" ? (
               <>
                 <span
                   style={{
@@ -362,18 +365,87 @@ export default function Payment() {
                     animation: "spin 0.8s linear infinite",
                   }}
                 />
-                Redirecting to Khalti…
+                Processing payment…
               </>
             ) : (
               <>
-                <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
-                  <rect
-                    width="40"
-                    height="40"
-                    rx="10"
-                    fill="white"
-                    fillOpacity=".15"
-                  />
+                ✓ Confirm Payment — Rs{" "}
+                {(booking?.totalPrice || 0).toLocaleString()}
+              </>
+            )}
+          </button>
+          <p
+            style={{
+              margin: "-4px 0 4px",
+              fontSize: 11,
+              color: "#94a3b8",
+              textAlign: "center",
+            }}
+          >
+            Simulated payment for demonstration — no real transaction
+          </p>
+
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
+              ALSO AVAILABLE IN PRODUCTION
+            </span>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+          </div>
+
+          {/* ── Khalti — production gateway ── */}
+          <button
+            onClick={() => requestPay("khalti")}
+            disabled={busy}
+            style={{
+              width: "100%",
+              padding: "13px 18px",
+              borderRadius: 12,
+              border: "1.5px solid #c4b5fd",
+              cursor: busy ? "not-allowed" : "pointer",
+              background: "#faf5ff",
+              color: "#5C2D91",
+              fontSize: 13,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              opacity: busy && paying !== "khalti" ? 0.4 : 1,
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) {
+                e.currentTarget.style.background = "#5C2D91";
+                e.currentTarget.style.color = "#fff";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!busy) {
+                e.currentTarget.style.background = "#faf5ff";
+                e.currentTarget.style.color = "#5C2D91";
+              }
+            }}
+          >
+            {paying === "khalti" ? (
+              <>
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid #c4b5fd",
+                    borderTopColor: "#5C2D91",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                Redirecting…
+              </>
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 40 40" fill="none">
+                  <rect width="40" height="40" rx="10" fill="#5C2D91" />
                   <text
                     x="50%"
                     y="57%"
@@ -386,176 +458,94 @@ export default function Payment() {
                     K
                   </text>
                 </svg>
-                Pay Rs {(booking?.totalPrice || 0).toLocaleString()} with Khalti
+                Pay with Khalti
               </>
             )}
           </button>
 
-          {/* ── eSewa ── */}
+          {/* ── eSewa — production gateway ── */}
           <button
             onClick={() => requestPay("esewa")}
             disabled={busy}
             style={{
               width: "100%",
-              padding: "15px 18px",
+              padding: "13px 18px",
               borderRadius: 12,
-              border: "none",
+              border: "1.5px solid #bbf7d0",
               cursor: busy ? "not-allowed" : "pointer",
-              background: paying === "esewa" ? "#4ea336" : "#60BB46",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
+              background: "#f0fdf4",
+              color: "#15803d",
+              fontSize: 13,
+              fontWeight: 600,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 10,
-              opacity: busy && paying !== "esewa" ? 0.5 : 1,
-              transition: "background 0.15s",
-              boxShadow: busy ? "none" : "0 4px 14px rgba(96,187,70,0.35)",
+              opacity: busy && paying !== "esewa" ? 0.4 : 1,
+              transition: "all 0.15s",
             }}
             onMouseEnter={(e) => {
-              if (!busy) e.currentTarget.style.background = "#4ea336";
+              if (!busy) {
+                e.currentTarget.style.background = "#60BB46";
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.borderColor = "#60BB46";
+              }
             }}
             onMouseLeave={(e) => {
-              if (!busy) e.currentTarget.style.background = "#60BB46";
+              if (!busy) {
+                e.currentTarget.style.background = "#f0fdf4";
+                e.currentTarget.style.color = "#15803d";
+                e.currentTarget.style.borderColor = "#bbf7d0";
+              }
             }}
           >
             {paying === "esewa" ? (
               <>
                 <span
                   style={{
-                    width: 18,
-                    height: 18,
-                    border: "2.5px solid rgba(255,255,255,0.35)",
-                    borderTopColor: "#fff",
+                    width: 14,
+                    height: 14,
+                    border: "2px solid #bbf7d0",
+                    borderTopColor: "#15803d",
                     borderRadius: "50%",
                     animation: "spin 0.8s linear infinite",
                   }}
                 />
-                Redirecting to eSewa…
+                Redirecting…
               </>
             ) : (
               <>
                 <span
                   style={{
-                    background: "#fff",
-                    color: "#60BB46",
+                    background: "#60BB46",
+                    color: "#fff",
                     fontWeight: 900,
-                    fontSize: 13,
-                    padding: "2px 7px",
+                    fontSize: 11,
+                    padding: "2px 6px",
                     borderRadius: 4,
                     lineHeight: 1.4,
                   }}
                 >
                   e
                 </span>
-                Pay Rs {(booking?.totalPrice || 0).toLocaleString()} with eSewa
+                Pay with eSewa
               </>
             )}
           </button>
 
-          {/* Test credentials */}
           {!busy && (
-            <div
+            <p
               style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 9,
-                padding: "10px 14px",
+                margin: 0,
+                fontSize: 11,
+                color: "#94a3b8",
+                textAlign: "center",
               }}
             >
-              <p
-                style={{
-                  margin: "0 0 4px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#64748b",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.4px",
-                }}
-              >
-                Test credentials
-              </p>
-              <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-                <strong>Khalti:</strong> 9800000001 · MPIN: 1111 · OTP: 987654
-                &nbsp;|&nbsp;
-                <strong>eSewa:</strong> 9806800001 · Nepal@123 · OTP: 123456
-              </p>
-            </div>
+              Khalti & eSewa require merchant API keys — available after
+              production setup
+            </p>
           )}
-
-          {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
-              OR
-            </span>
-            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-          </div>
-
-          {/* Demo Pay */}
-          <button
-            onClick={() => requestPay("demo")}
-            disabled={busy}
-            style={{
-              width: "100%",
-              padding: "13px 18px",
-              borderRadius: 12,
-              border: "1.5px dashed #94a3b8",
-              background: "#f8fafc",
-              cursor: busy ? "not-allowed" : "pointer",
-              color: "#475569",
-              fontSize: 13,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              opacity: busy && paying !== "demo" ? 0.5 : 1,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (!busy) {
-                e.currentTarget.style.background = "#f1f5f9";
-                e.currentTarget.style.borderColor = "#64748b";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!busy) {
-                e.currentTarget.style.background = "#f8fafc";
-                e.currentTarget.style.borderColor = "#94a3b8";
-              }
-            }}
-          >
-            {paying === "demo" ? (
-              <>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    border: "2px solid #94a3b8",
-                    borderTopColor: "#475569",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
-                Processing…
-              </>
-            ) : (
-              <>🔧 Demo Pay — bypass gateway (FYP use only)</>
-            )}
-          </button>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 11,
-              color: "#94a3b8",
-              textAlign: "center",
-            }}
-          >
-            Demo Pay activates booking directly — use only if gateways are
-            unavailable
-          </p>
         </div>
       </div>
 

@@ -14,6 +14,7 @@ import {
   cancelBooking,
   adminCashPayment,
   adminCancelBooking,
+  createWalkInBooking,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
@@ -69,6 +70,7 @@ router.get("/driver/mine", auth, driver, getDriverBookings);
 router.patch("/:id/driver-response", auth, driver, driverResponse);
 
 // ── Admin / Owner ─────────────────────────────────────────────────────────────
+router.post("/walkin", auth, admin, createWalkInBooking);
 router.get("/", auth, admin, getAllBookings);
 router.patch("/:id/cash-payment", auth, admin, adminCashPayment);
 router.patch("/:id/admin-cancel", auth, admin, adminCancelBooking);

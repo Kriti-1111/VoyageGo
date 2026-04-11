@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema(
     // Address
     permanentAddress: String,
     temporaryAddress: String,
+    
+    // Walk-in Customer
+    isWalkIn: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
