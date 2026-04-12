@@ -366,6 +366,29 @@ export default function Driver() {
     }
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return showToast("File too large (max 5MB)", "error");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result;
+        const { data } = await axios.patch(
+          `${API}/api/drivers/profile`,
+          { profilePhoto: base64 },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setUserProfile(data.driver);
+        showToast("Profile photo updated");
+      } catch (err) {
+        showToast("Failed to upload photo", "error");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const TABS = [
     { key: "pending", label: "New Requests", statuses: ["PendingDriver"] },
     { key: "active", label: "Active Trips", statuses: ["Confirmed", "Active"] },
@@ -445,30 +468,66 @@ export default function Driver() {
             position: "relative",
           }}
         >
-          <div>
-            <p
-              style={{
-                color: "#94a3b8",
-                fontSize: "12px",
-                fontWeight: "700",
-                textTransform: "uppercase",
-                letterSpacing: "1.5px",
-                margin: "0 0 4px",
-              }}
-            >
-              Driver Panel
-            </p>
-            <h1
-              style={{
-                color: "#fff",
-                fontSize: "26px",
-                fontWeight: "800",
-                margin: 0,
-                letterSpacing: "-0.3px",
-              }}
-            >
-              My Dashboard
-            </h1>
+          <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+            <label style={{ cursor: "pointer", position: "relative" }} title="Upload profile photo">
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
+              <div
+                style={{
+                  width: "60px",
+                  height: "60px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg,#F97316,#EA580C)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "24px",
+                  fontWeight: "700",
+                  overflow: "hidden",
+                  border: "2px solid rgba(255,255,255,0.2)"
+                }}
+              >
+                {userProfile?.profilePhoto ? (
+                  <img src={userProfile.profilePhoto} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  (userProfile?.name || "D")[0].toUpperCase()
+                )}
+              </div>
+              <div style={{ 
+                position: "absolute", bottom: -4, right: -4, 
+                background: "#f8fafc", color: "#0f172a", 
+                borderRadius: "50%", width: 22, height: 22, 
+                display: "flex", alignItems: "center", justifyContent: "center", 
+                fontSize: 12, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" 
+              }}>
+                📷
+              </div>
+            </label>
+            <div>
+              <p
+                style={{
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: "1.5px",
+                  margin: "0 0 4px",
+                }}
+              >
+                Driver Panel
+              </p>
+              <h1
+                style={{
+                  color: "#fff",
+                  fontSize: "26px",
+                  fontWeight: "800",
+                  margin: 0,
+                  letterSpacing: "-0.3px",
+                }}
+              >
+                {userProfile?.name ? `Hello, ${userProfile.name.split(" ")[0]}` : "My Dashboard"}
+              </h1>
+            </div>
           </div>
           <button
             onClick={toggleAvailability}

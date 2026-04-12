@@ -86,3 +86,75 @@ export const verifyDriver = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ── UPDATE DRIVER (Admin only) ──────────────────────────────────────────────────
+export const updateDriverAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { driverRatePerHour, district } = req.body;
+
+    const updates = {};
+    if (driverRatePerHour !== undefined) updates.driverRatePerHour = Number(driverRatePerHour);
+    if (district !== undefined) updates.district = district;
+
+    const driver = await User.findOneAndUpdate(
+      { _id: id, role: "DRIVER" },
+      updates,
+      { new: true }
+    );
+
+    if (!driver) {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    res.json({ message: "Driver updated successfully.", driver });
+  } catch (error) {
+    console.error("updateDriverAdmin error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ── UPDATE DRIVER PROFILE ──────────────────────────────────────────────────────
+export const updateDriverProfile = async (req, res) => {
+  try {
+    const { profilePhoto } = req.body;
+    const driver = await User.findByIdAndUpdate(
+      req.user.id,
+      { profilePhoto },
+      { new: true }
+    ).select("-password");
+
+    if (!driver) return res.status(404).json({ message: "Driver not found" });
+    
+    res.json({ message: "Profile updated successfully.", driver });
+  } catch (error) {
+    console.error("updateDriverProfile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ── RATE DRIVER ──────────────────────────────────────────────────────────────
+export const rateDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 1 and 5." });
+    }
+
+    const driver = await User.findById(id);
+    if (!driver || driver.role !== "DRIVER") {
+      return res.status(404).json({ message: "Driver not found" });
+    }
+
+    driver.totalRating += Number(rating);
+    driver.ratingCount += 1;
+    await driver.save();
+
+    res.json({ message: "Rating submitted successfully.", driver });
+  } catch (error) {
+    console.error("rateDriver error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

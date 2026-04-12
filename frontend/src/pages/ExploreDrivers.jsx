@@ -38,23 +38,31 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
       }}
     >
       {/* Avatar */}
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: "50%",
-          flexShrink: 0,
-          background: "linear-gradient(135deg,#F97316,#EA580C)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontSize: 20,
-          fontWeight: 700,
-        }}
-      >
-        {(driver.name || "D")[0].toUpperCase()}
-      </div>
+      {driver.profilePhoto ? (
+        <img
+          src={driver.profilePhoto}
+          alt={driver.name}
+          style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            flexShrink: 0,
+            background: "linear-gradient(135deg,#F97316,#EA580C)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#fff",
+            fontSize: 20,
+            fontWeight: 700,
+          }}
+        >
+          {(driver.name || "D")[0].toUpperCase()}
+        </div>
+      )}
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -69,6 +77,18 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
           <span style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>
             {driver.name}
           </span>
+          {driver.ratingCount > 0 ? (
+            <span style={{ fontSize: 12, color: "#f59e0b", fontWeight: 700 }}>
+              ⭐ {(driver.totalRating / driver.ratingCount).toFixed(1)} · {driver.totalRides || 0} rides
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>New driver</span>
+          )}
+          {driver.district && (
+            <span style={{ fontSize: 11, color: "#475569", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>
+              📍 {driver.district}
+            </span>
+          )}
           {driver.isDriverVerified && (
             <span
               style={{
@@ -134,12 +154,6 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
               {spec}
             </span>
           ))}
-          {!driver.languages?.length &&
-            !driver.vehicleSpecialization?.length && (
-              <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                No specializations listed
-              </span>
-            )}
         </div>
       </div>
 
@@ -250,6 +264,7 @@ export default function ExploreDrivers() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [filterAvail, setFilterAvail] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
 
   // Fetch is public — no token needed. Guests can browse, logged-in users can book.
   useEffect(() => {
@@ -298,7 +313,18 @@ export default function ExploreDrivers() {
           s.toLowerCase().includes(q),
         );
       const matchAvail = !filterAvail || d.isAvailable;
-      return matchSearch && matchAvail;
+      const matchDistrict = !selectedDistrict || d.district === selectedDistrict;
+      return matchSearch && matchAvail && matchDistrict;
+    })
+    .sort((a, b) => {
+      // 1. Available online first
+      if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
+      // 2. Highest rated
+      const ratingA = a.ratingCount > 0 ? a.totalRating / a.ratingCount : 0;
+      const ratingB = b.ratingCount > 0 ? b.totalRating / b.ratingCount : 0;
+      if (ratingA !== ratingB) return ratingB - ratingA;
+      // 3. Most rides completed
+      return (b.totalRides || 0) - (a.totalRides || 0);
     });
 
   return (
@@ -379,6 +405,25 @@ export default function ExploreDrivers() {
               boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
             }}
           />
+          <select
+            value={selectedDistrict}
+            onChange={(e) => setSelectedDistrict(e.target.value)}
+            style={{
+              padding: "11px 16px",
+              borderRadius: 12,
+              border: "1px solid #dde3ec",
+              background: "#fff",
+              fontSize: 14,
+              color: "#0f172a",
+              outline: "none",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+            }}
+          >
+            <option value="">All Districts</option>
+            <option value="Kathmandu">Kathmandu</option>
+            <option value="Lalitpur">Lalitpur</option>
+            <option value="Bhaktapur">Bhaktapur</option>
+          </select>
           <button
             onClick={() => setFilterAvail((v) => !v)}
             style={{

@@ -6,6 +6,9 @@ import {
   updateAvailability,
   getAllDrivers,
   verifyDriver,
+  updateDriverProfile,
+  rateDriver,
+  updateDriverAdmin,
 } from "../controllers/driverController.js";
 import Booking, { BOOKING_STATUS } from "../models/Booking.js";
 
@@ -16,10 +19,17 @@ router.get("/", getAllDrivers);
 
 // Driver's own profile and availability toggle
 router.get("/me", auth, driver, getDriverProfile);
+router.patch("/profile", auth, driver, updateDriverProfile);
 router.patch("/availability", auth, driver, updateAvailability);
+
+// Customer rating
+router.post("/:id/rate", auth, rateDriver);
 
 // Admin: verify / unverify
 router.patch("/:id/verify", auth, admin, verifyDriver);
+
+// Admin: update details (rate, district)
+router.patch("/:id/admin-update", auth, admin, updateDriverAdmin);
 
 // ── Driver availability calendar ──────────────────────────────────────────────
 // GET /api/drivers/:id/availability

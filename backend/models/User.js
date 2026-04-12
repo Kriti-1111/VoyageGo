@@ -22,6 +22,15 @@ const userSchema = new mongoose.Schema(
     shiftStart: { type: String },
     shiftEnd: { type: String },
     driverRatePerHour: { type: Number, default: 200 },
+    profilePhoto: { type: String, default: "" },
+    totalRides: { type: Number, default: 0 },
+    totalRating: { type: Number, default: 0 },
+    ratingCount: { type: Number, default: 0 },
+    district: { 
+      type: String, 
+      enum: ["Kathmandu", "Lalitpur", "Bhaktapur"], 
+      default: "Kathmandu" 
+    },
 
     // Address
     permanentAddress: String,

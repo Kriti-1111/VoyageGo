@@ -141,11 +141,15 @@ async function findAvailableDriver(
   startDate,
   endDate,
   excludeIds = [],
+  preferredDistrict = ""
 ) {
-  for (const driverId of vehicleDrivers) {
-    if (excludeIds.some((id) => String(id) === String(driverId))) continue;
+  const drivers = await User.find({ _id: { $in: vehicleDrivers } });
+  let available = [];
+
+  for (const doc of drivers) {
+    if (excludeIds.some((id) => String(id) === String(doc._id))) continue;
     const conflict = await Booking.findOne({
-      driver: driverId,
+      driver: doc._id,
       status: {
         $in: [
           BOOKING_STATUS.PENDING_DRIVER,
@@ -156,9 +160,21 @@ async function findAvailableDriver(
       startDate: { $lt: new Date(endDate) },
       endDate: { $gt: new Date(startDate) },
     });
-    if (!conflict) return driverId;
+    if (!conflict) {
+      available.push(doc);
+    }
   }
-  return null;
+
+  if (available.length === 0) return null;
+
+  if (preferredDistrict) {
+    // Try same district first
+    let driver = available.find(d => d.district === preferredDistrict);
+    if (driver) return driver._id;
+  }
+
+  // Fall back to any available driver if none found
+  return available[0]._id;
 }
 
 // ── Auto-activate ─────────────────────────────────────────────────────────────
@@ -204,6 +220,7 @@ export const createBooking = async (req, res) => {
       requiresDriver = true, // NEW: false = self-drive
       pickupType = "self", // NEW: "self" | "delivery"
       pickupLocation = "", // NEW: address if delivery
+      pickupDistrict = "Kathmandu", // Admin dist
       customerId, // NEW: for walk-in bookings by admin
     } = req.body;
 
@@ -290,7 +307,7 @@ export const createBooking = async (req, res) => {
         }
         assignedDriver = driverId;
       } else if (driverPool.length > 0) {
-        assignedDriver = await findAvailableDriver(driverPool, start, end);
+        assignedDriver = await findAvailableDriver(driverPool, start, end, [], pickupDistrict);
         if (!assignedDriver) {
           return res
             .status(400)
@@ -394,6 +411,7 @@ export const createWalkInBooking = async (req, res) => {
       requiresDriver = true,
       pickupType = "self",
       pickupLocation = "",
+      pickupDistrict = "Kathmandu",
       paymentMethod = "Cash",
     } = req.body;
 
@@ -462,7 +480,7 @@ export const createWalkInBooking = async (req, res) => {
         }
         assignedDriver = driverId;
       } else if (driverPool.length > 0) {
-        assignedDriver = await findAvailableDriver(driverPool, start, end);
+        assignedDriver = await findAvailableDriver(driverPool, start, end, [], pickupDistrict);
         if (!assignedDriver) {
           return res.status(400).json({ message: "No drivers available for this time. Choose a different time or select a driver manually." });
         }
@@ -797,6 +815,11 @@ export const returnVehicle = async (req, res) => {
     } else {
       booking.finePaid = true; // no fine = no payment needed
     }
+
+    if (booking.driver) {
+      await User.findByIdAndUpdate(booking.driver, { $inc: { totalRides: 1 } });
+    }
+
     await booking.save();
 
     await notify({

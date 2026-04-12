@@ -835,6 +835,8 @@ function DriversPanel({ isAdmin }) {
   const [verifyingId, setVerifyingId] = useState(null);
   const [editingRate, setEditingRate] = useState(null); // { id, value }
   const [savingRate,  setSavingRate]  = useState(null);
+  const [editingDistrict, setEditingDistrict] = useState(null); // { id, value }
+  const [savingDistrict,  setSavingDistrict]  = useState(null);
   const [filter,      setFilter]      = useState("all");
   const [deletingId,  setDeletingId]  = useState(null);
   const token = localStorage.getItem("token");
@@ -865,11 +867,24 @@ function DriversPanel({ isAdmin }) {
     if (isNaN(rate) || rate < 0) { alert("Enter a valid rate (Rs per hour)."); return; }
     setSavingRate(driverId);
     try {
-      await axios.patch(`${ENDPOINTS.DRIVERS}/${driverId}/rate`, { driverRatePerHour: rate }, { headers:{ Authorization:`Bearer ${token}` } });
+      await axios.patch(`${ENDPOINTS.DRIVERS}/${driverId}/admin-update`, { driverRatePerHour: rate }, { headers:{ Authorization:`Bearer ${token}` } });
       setDrivers(prev => prev.map(d => (d._id===driverId||d.id===driverId) ? { ...d, driverRatePerHour:rate } : d));
       setEditingRate(null);
     } catch(e) { alert(e.response?.data?.message||"Failed to save rate."); }
     finally { setSavingRate(null); }
+  };
+
+  const saveDistrict = async (driverId) => {
+    if (!editingDistrict || editingDistrict.id !== driverId) return;
+    const dist = editingDistrict.value;
+    if (!["Kathmandu", "Lalitpur", "Bhaktapur"].includes(dist)) { alert("Invalid district."); return; }
+    setSavingDistrict(driverId);
+    try {
+      await axios.patch(`${ENDPOINTS.DRIVERS}/${driverId}/admin-update`, { district: dist }, { headers:{ Authorization:`Bearer ${token}` } });
+      setDrivers(prev => prev.map(d => (d._id===driverId||d.id===driverId) ? { ...d, district:dist } : d));
+      setEditingDistrict(null);
+    } catch(e) { alert(e.response?.data?.message||"Failed to save district."); }
+    finally { setSavingDistrict(null); }
   };
 
   const deleteDriver = async (dId, name) => {
@@ -910,7 +925,7 @@ function DriversPanel({ isAdmin }) {
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
               <tr style={{ background:"#f8fafc" }}>
-                {["Driver","Email","Phone","Availability","Rate (Rs/hr)","Status",...(isAdmin?["Actions",""]:[])].map(h => (
+                {["Driver","Email","Phone","Availability","Rate (Rs/hr)","District","Status",...(isAdmin?["Actions",""]:[])].map(h => (
                   <th key={h} style={{ padding:"10px 16px", textAlign:"left", fontSize:"11px", fontWeight:"700", color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.6px", borderBottom:"1px solid #f1f5f9" }}>{h}</th>
                 ))}
               </tr>
@@ -964,6 +979,36 @@ function DriversPanel({ isAdmin }) {
                         )
                       ) : (
                         <span style={{ fontSize:13, color:"#334155" }}>{d.driverRatePerHour ? `Rs ${d.driverRatePerHour}` : "—"}</span>
+                      )}
+                    </td>
+
+                    {/* District — inline editable */}
+                    <td style={{ padding:"10px 16px" }}>
+                      {isAdmin ? (
+                        editingDistrict?.id === dId ? (
+                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                            <select value={editingDistrict.value} onChange={e => setEditingDistrict({ id:dId, value:e.target.value })}
+                              style={{ padding:"5px", border:"1.5px solid #F97316", borderRadius:7, fontSize:12, outline:"none", cursor:"pointer" }}>
+                              <option value="Kathmandu">Kathmandu</option>
+                              <option value="Lalitpur">Lalitpur</option>
+                              <option value="Bhaktapur">Bhaktapur</option>
+                            </select>
+                            <button onClick={() => saveDistrict(dId)} disabled={savingDistrict===dId}
+                              style={{ padding:"5px 10px", border:"none", borderRadius:6, background:"#F97316", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                              {savingDistrict===dId?"…":"Save"}
+                            </button>
+                            <button onClick={() => setEditingDistrict(null)} style={{ padding:"5px 8px", border:"1px solid #e2e8f0", borderRadius:6, background:"#fff", color:"#64748b", fontSize:11, cursor:"pointer" }}>✕</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setEditingDistrict({ id:dId, value: d.district || "Kathmandu" })}
+                            style={{ fontSize:12, fontWeight:600, color:d.district?"#0f172a":"#94a3b8", background:"none", border:"none", cursor:"pointer", padding:"4px 8px", borderRadius:6, textAlign:"left", whiteSpace:"nowrap" }}
+                            onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                            onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                            {d.district ? `📍 ${d.district}` : "Set district"}
+                          </button>
+                        )
+                      ) : (
+                        <span style={{ fontSize:12, color:"#334155", whiteSpace:"nowrap" }}>{d.district ? `📍 ${d.district}` : "—"}</span>
                       )}
                     </td>
 
