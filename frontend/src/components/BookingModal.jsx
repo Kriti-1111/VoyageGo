@@ -16,6 +16,18 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
   const [selectedDriver, setSelectedDriver] = useState(null); // full driver object or null
   const [showDriverList, setShowDriverList] = useState(false);
   const [driverSearch, setDriverSearch] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Fetch full user to get document status
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    fetch(`${API}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setCurrentUser(data))
+      .catch((e) => console.error("Failed to fetch user", e));
+  }, []);
 
   // Lock background scroll while modal is open
   useEffect(() => {
@@ -729,6 +741,40 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
             {selectedDriver ? `🧑‍✈️ With driver` : "🚗 Vehicle only"}
           </span>
         </div>
+
+        {/* ── Identity Verification Warning ── */}
+        {currentUser &&
+          (currentUser.documents?.status === "NotSubmitted" ||
+            currentUser.documents?.status === "Rejected") && (
+            <div
+              style={{
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: 10,
+                padding: "12px 14px",
+                marginBottom: 16,
+                display: "flex",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>⚠️</span>
+              <div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#b45309",
+                  }}
+                >
+                  Your identity is not yet verified.
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#d97706" }}>
+                  Your booking will be held until verification is complete.
+                </p>
+              </div>
+            </div>
+          )}
 
         {/* ── Actions ── */}
         <div style={{ display: "flex", gap: 8 }}>

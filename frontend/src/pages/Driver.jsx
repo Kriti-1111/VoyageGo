@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { format, parseISO } from "date-fns";
+import DocumentVerificationBanner from "../components/DocumentVerificationBanner";
 
 const API = "http://localhost:5000";
 const fmt = (d) => {
@@ -295,6 +296,7 @@ export default function Driver() {
   const [toggling, setToggling] = useState(false);
   const [tab, setTab] = useState("pending");
   const [expanded, setExpanded] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -322,6 +324,7 @@ export default function Driver() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setIsOnline(data.isAvailable);
+      setUserProfile(data);
     } catch (e) {
       console.error(e);
     }
@@ -579,6 +582,14 @@ export default function Driver() {
             </div>
           ))}
         </div>
+
+        {/* Verification Banner */}
+        {userProfile && (
+          <DocumentVerificationBanner 
+            user={userProfile} 
+            onUploadSuccess={fetchAvailability} 
+          />
+        )}
 
         {/* My assigned vehicles */}
         <MyVehicles token={token} />

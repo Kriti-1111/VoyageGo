@@ -279,6 +279,8 @@ export default function ConditionReport() {
     Left: null,
     Right: null,
   });
+  const [damageFlagged, setDamageFlagged] = useState(false);
+  const [damageNote, setDamageNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -317,10 +319,14 @@ export default function ConditionReport() {
       setSubmitting(true);
       await axios.post(
         `${API}/api/bookings/${bookingId}/pre-trip`,
-        { photos: SLOTS.map((s) => photos[s.key]) },
+        { 
+          photos: SLOTS.map((s) => photos[s.key]),
+          damageFlagged,
+          damageNote
+        },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
-      showToast("Trip started successfully.", "success");
+      showToast("Condition report submitted successfully.", "success");
       setTimeout(() => navigate("/customer"), 1800);
     } catch (err) {
       showToast(
@@ -450,7 +456,7 @@ export default function ConditionReport() {
                   color: "#0f172a",
                 }}
               >
-                Pre-Trip Vehicle Inspection
+                {booking?.preTrip?.submittedAt ? "Return Vehicle Inspection" : "Pre-Trip Vehicle Inspection"}
               </h2>
               <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                 {[
@@ -735,6 +741,45 @@ export default function ConditionReport() {
               </div>
             </div>
           </div>
+
+          {/* Damage Flagging */}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+              padding: "16px 18px",
+              marginTop: 14,
+            }}
+          >
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
+              <input
+                type="checkbox"
+                checked={damageFlagged}
+                onChange={(e) => setDamageFlagged(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "#dc2626", cursor: "pointer" }}
+              />
+              I noticed damage on this vehicle
+            </label>
+            {damageFlagged && (
+              <textarea
+                value={damageNote}
+                onChange={(e) => setDamageNote(e.target.value)}
+                placeholder="Describe the damage briefly..."
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  height: 60,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 13,
+                  fontFamily: "inherit",
+                  resize: "none"
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {/* Fixed bottom bar */}
@@ -831,7 +876,7 @@ export default function ConditionReport() {
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
               )}
-              {submitting ? "Starting…" : "Start Trip"}
+              {submitting ? "Submitting…" : (booking?.preTrip?.submittedAt ? "Submit Return Report" : "Start Trip")}
             </button>
           </div>
         </div>

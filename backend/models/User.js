@@ -29,6 +29,24 @@ const userSchema = new mongoose.Schema(
     
     // Walk-in Customer
     isWalkIn: { type: Boolean, default: false },
+
+    // Document Verification
+    documents: {
+      status: {
+        type: String,
+        enum: ["NotSubmitted", "PendingReview", "Rejected", "Verified"],
+        default: "NotSubmitted",
+      },
+      verificationMethod: {
+        type: String,
+        enum: ["Online", "InPerson"],
+        default: "Online",
+      },
+      citizenshipFront: { type: String, default: "" },
+      citizenshipBack: { type: String, default: "" },
+      license: { type: String, default: "" },
+      rejectionReason: { type: String, default: "" },
+    },
   },
   { timestamps: true },
 );

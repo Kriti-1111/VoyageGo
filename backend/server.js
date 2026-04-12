@@ -10,6 +10,8 @@ import vehicleRoutes from "./routes/vehicleRoutes.js";
 import driverRoutes from "./routes/driverRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import conditionReportRoutes from "./routes/conditionReportRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
 
@@ -27,8 +29,8 @@ app.use(
 app.options("/{*splat}", cors());
 
 // ── 2. Body parsing — before routes ──────────────────────────────────────────
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ── 3. Routes — after middleware ──────────────────────────────────────────────
 app.use("/api/auth", authRoutes); // /auth/register, /auth/login
@@ -38,6 +40,8 @@ app.use("/api/drivers", driverRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/pay", paymentRoutes);
+app.use("/api/condition-reports", conditionReportRoutes);
+app.use("/api/users", userRoutes);
 // ── 4. Health / test routes ───────────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.json({

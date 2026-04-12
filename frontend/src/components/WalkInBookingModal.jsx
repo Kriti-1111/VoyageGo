@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
+// Helper for FileReader
+function fileToBase64(file) {
+  if (!file) return null;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 const API = "http://localhost:5000";
 
 // Re-using pricing calc from BookingPage to show live prices
@@ -62,6 +73,12 @@ export default function WalkInBookingModal({ onClose, onSuccess }) {
 
   const [driverPool, setDriverPool] = useState([]);
   const [driverId, setDriverId] = useState("");
+
+  // Documents State
+  const [citizenshipFront, setCitizenshipFront] = useState(null);
+  const [citizenshipBack, setCitizenshipBack] = useState(null);
+  const [license, setLicense] = useState(null);
+  const [docsVerified, setDocsVerified] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -127,6 +144,25 @@ export default function WalkInBookingModal({ onClose, onSuccess }) {
       }, { headers: { Authorization: `Bearer ${token}` } });
       
       const newBooking = res.data;
+
+      // Ensure docs are uploaded if verified checkbox is checked
+      if (docsVerified && citizenshipFront && citizenshipBack) {
+        try {
+          const frontB64 = await fileToBase64(citizenshipFront);
+          const backB64 = await fileToBase64(citizenshipBack);
+          const licenseB64 = await fileToBase64(license);
+          
+          await axios.post(`${API}/api/users/documents/walkin`, {
+            customerId: newBooking.customerId || newBooking.customer,
+            citizenshipFront: frontB64,
+            citizenshipBack: backB64,
+            license: licenseB64 || ""
+          }, { headers: { Authorization: `Bearer ${token}` } });
+        } catch (docErr) {
+          console.error("Document upload failed, but booking succeeded:", docErr);
+          alert("Booking succeeded, but document verification failed.");
+        }
+      }
 
       if (paymentMethod === "eSewa") {
         // --- TEMPORARY FIX: using demoPay endpoint as requested to bypass eSewa sandbox outage ---
@@ -290,6 +326,34 @@ export default function WalkInBookingModal({ onClose, onSuccess }) {
                     <option value="eSewa">eSewa</option>
                   </select>
                 </div>
+              </div>
+
+              {/* CUSTOMER DOCUMENTS (In-Person Verification) */}
+              <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <h4 style={{ margin: "0 0 12px", fontSize: 13, color: "#0f172a", textTransform: "uppercase" }}>Customer Documents (In-Person)</h4>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label style={lbl}>Citizenship Front*</label>
+                    <input type="file" accept="image/*" onChange={(e) => setCitizenshipFront(e.target.files[0])} style={{...inp, padding: "7px"}} />
+                  </div>
+                  <div>
+                    <label style={lbl}>Citizenship Back*</label>
+                    <input type="file" accept="image/*" onChange={(e) => setCitizenshipBack(e.target.files[0])} style={{...inp, padding: "7px"}} />
+                  </div>
+                </div>
+
+                {!requiresDriver && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={lbl}>License (Self-Drive)</label>
+                    <input type="file" accept="image/*" onChange={(e) => setLicense(e.target.files[0])} style={{...inp, padding: "7px"}} />
+                  </div>
+                )}
+
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: docsVerified ? "#15803d" : "#0f172a", cursor: "pointer" }}>
+                  <input type="checkbox" checked={docsVerified} onChange={e => setDocsVerified(e.target.checked)} style={{ transform: "scale(1.2)" }} />
+                  ☑ Documents verified in person by staff
+                </label>
               </div>
 
               {/* Price Estimate */}

@@ -90,8 +90,15 @@ const bookingSchema = new mongoose.Schema(
 
     // Post-trip
     postTrip: {
+      photos: { type: [String], default: [] },
       submittedAt: { type: Date, default: null },
     },
+
+    // Condition report
+    conditionReportReviewed: { type: Boolean, default: false },
+    damageFlagged: { type: Boolean, default: false },
+    damageFlaggedBy: { type: String, enum: ["customer", "staff", "both"], default: null },
+    damageNote: { type: String, default: "" },
 
     // Fine breakdown
     vehicleFine: { type: Number, default: 0 },

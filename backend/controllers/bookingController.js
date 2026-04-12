@@ -843,7 +843,7 @@ export const returnVehicle = async (req, res) => {
 export const submitPreTrip = async (req, res) => {
   try {
     const { id } = req.params;
-    const { photos } = req.body;
+    const { photos, damageFlagged, damageNote } = req.body;
 
     if (!Array.isArray(photos) || photos.length === 0) {
       return res
@@ -858,11 +858,23 @@ export const submitPreTrip = async (req, res) => {
       return res.status(403).json({ message: "Not authorised." });
     }
 
-    booking.preTrip.photos = photos;
-    booking.preTrip.submittedAt = new Date();
+    if (!booking.preTrip?.submittedAt) {
+      booking.preTrip.photos = photos;
+      booking.preTrip.submittedAt = new Date();
+    } else {
+      booking.postTrip.photos = photos;
+      booking.postTrip.submittedAt = new Date();
+    }
+
+    if (damageFlagged) {
+      booking.damageFlagged = true;
+      booking.damageFlaggedBy = "customer";
+      booking.damageNote = damageNote || "";
+    }
+
     await booking.save();
 
-    res.status(200).json({ message: "Photos uploaded.", booking });
+    res.status(200).json({ message: "Condition report submitted.", booking });
   } catch (error) {
     console.error("submitPreTrip:", error);
     res.status(500).json({ message: "Server error." });

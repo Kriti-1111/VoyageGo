@@ -60,6 +60,13 @@ export const verifyDriver = async (req, res) => {
       return res.status(404).json({ message: "Driver not found" });
     }
 
+    if (isDriverVerified) {
+      if (!driver.documents?.license || driver.documents?.status === "NotSubmitted") {
+        return res.status(400).json({ message: "Driver must submit their license document before verification." });
+      }
+      driver.documents.status = "Verified";
+    }
+
     driver.isDriverVerified = isDriverVerified;
     await driver.save();
 

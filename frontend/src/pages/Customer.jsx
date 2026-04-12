@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import DocumentVerificationBanner from "../components/DocumentVerificationBanner";
 
 const API = "http://localhost:5000";
 function getUser() {
@@ -623,20 +624,33 @@ const TABS = [
 
 export default function Customer() {
   const navigate = useNavigate();
-  const user = getUser();
+  const initialUser = getUser();
 
+  const [fullUser, setFullUser] = useState(initialUser);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("pending");
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!initialUser) {
       navigate("/login", { replace: true });
       return;
     }
+    fetchFullUser();
     fetchBookings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchFullUser() {
+    try {
+      const { data } = await axios.get(`${API}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      setFullUser(data);
+    } catch (err) {
+      console.error("Failed to fetch full user profiles", err);
+    }
+  }
 
   async function fetchBookings() {
     try {
@@ -744,17 +758,25 @@ export default function Customer() {
                 letterSpacing: "-0.3px",
               }}
             >
-              {user?.name
-                ? `Welcome, ${user.name.split(" ")[0]}`
+              {fullUser?.name
+                ? `Welcome, ${fullUser.name.split(" ")[0]}`
                 : "My Dashboard"}
             </h1>
             <p style={{ color: "#94a3b8", fontSize: 14, margin: 0 }}>
-              {user?.email}
+              {fullUser?.email}
             </p>
           </div>
         </div>
 
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 20px" }}>
+          {/* Document Verification Banner */}
+          {fullUser && (
+            <DocumentVerificationBanner
+              user={fullUser}
+              onUploadSuccess={fetchFullUser}
+            />
+          )}
+
           {/* Pay now banner */}
           {needsAction > 0 && (
             <div

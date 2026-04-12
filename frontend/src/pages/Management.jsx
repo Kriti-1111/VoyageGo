@@ -24,7 +24,7 @@ const ALL_TABS = [
   { id:"customers", label:"Customers",  icon:<FaUsers />,               roles:["OWNER","ADMIN"] },
   { id:"fines",     label:"Fines",      icon:<FaGavel />,               roles:["OWNER","ADMIN","STAFF"] },
   { id:"documents", label:"Documents",  icon:<FaFileAlt />,             roles:["OWNER","STAFF"] },
-  { id:"disputes",  label:"Disputes",   icon:<FaExclamationTriangle />, roles:["OWNER","STAFF"] },
+  { id:"condition-reports",  label:"Condition Reports",   icon:<FaExclamationTriangle />, roles:["OWNER","ADMIN","STAFF"] },
   { id:"staff",     label:"Staff Mgmt", icon:<FaShieldAlt />,           roles:["OWNER"] },
 ];
 
@@ -215,12 +215,12 @@ function BookingsTable({ bookings, onCashPayment, onCancel, onDelete, showAction
 }
 
 // ─── Overview Panel ───────────────────────────────────────────────────────────
-function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
+function OverviewPanel({ role, bookings, vehicles, conditionReports, onCashPayment, onCancel, pendingDocsCount }) {
+  const unreviewedCount = conditionReports.filter(r => !r.conditionReportReviewed).length;
   const stats = role==="STAFF"
     ? [
-        { title:"Documents to Review", value:"0", subtitle:"0 pending",   icon:<FaFileAlt />,           accent:"#f59e0b" },
-        { title:"Open Disputes",        value:"0", subtitle:"0 awaiting",  icon:<FaExclamationTriangle />,accent:"#ef4444" },
-        { title:"Resolved Today",       value:"0", subtitle:"+0 this week",icon:<FaCheckCircle />,       accent:"#10b981" },
+        { title:"Documents to Review", value:pendingDocsCount, subtitle:`${pendingDocsCount} pending`,   icon:<FaFileAlt />,           accent:"#f59e0b" },
+        { title:"Condition Reports",   value:unreviewedCount, subtitle:`${unreviewedCount} awaiting`,  icon:<FaExclamationTriangle />,accent:"#ef4444" },
       ]
     : [
         { title:"Active Bookings", value:bookings.filter(b=>["Active","Confirmed"].includes(b.status)).length, subtitle:`${bookings.filter(b=>b.status==="PendingDriver").length} awaiting driver`, icon:<FaClipboardList />, accent:"#f59e0b" },
@@ -242,8 +242,22 @@ function OverviewPanel({ role, bookings, vehicles, onCashPayment, onCancel }) {
       )}
       {role==="STAFF" && (
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"18px" }}>
-          <div style={card}><PanelHeader title="Pending Documents" subtitle="Customer & driver verifications" /><EmptyState icon={<FaFileAlt />} label="No documents pending" hint="Documents submitted for review appear here." /></div>
-          <div style={card}><PanelHeader title="Open Disputes" subtitle="Damage reports & complaints" /><EmptyState icon={<FaExclamationTriangle />} label="No open disputes" hint="Disputes appear here." /></div>
+          <div style={card}>
+            <PanelHeader title="Pending Documents" subtitle="Customer & driver verifications" />
+            <EmptyState 
+              icon={<FaFileAlt />} 
+              label={pendingDocsCount === 0 ? "No documents pending" : `${pendingDocsCount} document${pendingDocsCount > 1 ? "s" : ""} to review`} 
+              hint="Go to Documents tab to review." 
+            />
+          </div>
+          <div style={card}>
+            <PanelHeader title="Condition Reports" subtitle="Pre and post trip condition reports" />
+            <EmptyState 
+              icon={<FaExclamationTriangle />} 
+              label={unreviewedCount === 0 ? "No open condition reports" : `${unreviewedCount} report${unreviewedCount > 1 ? "s" : ""} awaiting review`} 
+              hint="Condition reports appear here." 
+            />
+          </div>
         </div>
       )}
     </div>
@@ -1240,6 +1254,255 @@ function GenericPanel({ title, subtitle, icon, hint }) {
   return <div style={card}><PanelHeader title={title} subtitle={subtitle} /><EmptyState icon={icon} label={`No ${title.toLowerCase()} data yet`} hint={hint} /></div>;
 }
 
+// ─── Condition Reports Panel ──────────────────────────────────────────────────
+function ConditionReportsPanel({ reports, fetchReports }) {
+  const [filter, setFilter] = useState("all");
+  const [toggling, setToggling] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [flagging, setFlagging] = useState(null);
+  const token = localStorage.getItem("token");
+
+  const filtered = reports.filter(r => {
+    if (filter === "damage") return r.damageFlagged;
+    return true;
+  });
+
+  const toggleReview = async (id, currentReviewed) => {
+    setToggling(id);
+    try {
+      await axios.patch(`${BASE_URL}/api/condition-reports/${id}/review`, { reviewed: !currentReviewed }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchReports();
+    } catch {
+      alert("Failed to update status.");
+    } finally {
+      setToggling(null);
+    }
+  };
+
+  const toggleFlag = async (id, currentVal) => {
+    setFlagging(id);
+    try {
+      await axios.patch(`${BASE_URL}/api/condition-reports/${id}/review`, { damageFlagged: !currentVal, damageFlaggedBy: !currentVal ? "staff" : null }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchReports();
+    } catch(e) { console.error(e); } finally { setFlagging(null); }
+  };
+
+  const damageCount = reports.filter(r => r.damageFlagged).length;
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
+        <div>
+          <h2 style={{ fontSize:"17px", fontWeight:"700", color:"#0f172a", margin:0 }}>Condition Reports</h2>
+          <p style={{ fontSize:"13px", color:"#64748b", margin:"2px 0 0" }}>{reports.length} reports submitted</p>
+        </div>
+        <div style={{ display:"flex", gap:"8px" }}>
+          <button onClick={() => setFilter("all")} style={{ padding:"6px 14px", border:`1px solid ${filter==="all"?"#F97316":"#e2e8f0"}`, borderRadius:"20px", fontSize:"12px", fontWeight:"600", cursor:"pointer", background:filter==="all"?"#F97316":"#fff", color:filter==="all"?"#fff":"#64748b" }}>All Reports ({reports.length})</button>
+          <button onClick={() => setFilter("damage")} style={{ padding:"6px 14px", border:`1px solid ${filter==="damage"?"#F97316":damageCount>0?"#f59e0b":"#e2e8f0"}`, borderRadius:"20px", fontSize:"12px", fontWeight:"600", cursor:"pointer", background:filter==="damage"?"#F97316":damageCount>0?"#fffbeb":"#fff", color:filter==="damage"?"#fff":damageCount>0?"#b45309":"#64748b" }}>Damage Flagged ({damageCount})</button>
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div style={card}><EmptyState icon={<FaExclamationTriangle />} label="No reports found" hint="No condition reports match this filter." /></div>
+      ) : (
+        <div style={{ display:"grid", gap:"16px" }}>
+          {filtered.map(r => {
+            const isReviewed = r.conditionReportReviewed;
+            return (
+              <div key={r._id} style={{ ...card, padding:"16px", background: isReviewed ? "#f8fafc" : "#fff", opacity: isReviewed ? 0.7 : 1, transition: "background 0.2s" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div onClick={() => setExpandedId(expandedId === r._id ? null : r._id)} style={{ cursor: "pointer", flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <h3 style={{ margin:"0 0 4px", fontSize:"14px", fontWeight:"700", color: isReviewed ? "#64748b" : "#0f172a" }}>
+                        Booking #{r._id.slice(-5)} · {r.customer?.name || "Customer"} · {r.vehicle?.name || "Vehicle"}
+                      </h3>
+                      {(r.damageFlaggedBy === 'customer' || r.damageFlaggedBy === 'both') && (
+                        <span style={{ background: "#fef2f2", color: "#dc2626", padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 700, border: "1px solid #fca5a5" }}>
+                          ⚠ Damage reported by customer
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin:0, fontSize:"12px", color:"#94a3b8" }}>
+                      Click to expand · Submitted: {r.preTrip?.submittedAt ? new Date(r.preTrip.submittedAt).toLocaleDateString() : (r.postTrip?.submittedAt ? new Date(r.postTrip.submittedAt).toLocaleDateString() : "—")}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button disabled={flagging===r._id} onClick={() => toggleFlag(r._id, r.damageFlagged)}
+                      style={{ padding:"6px 14px", border:`1px solid ${r.damageFlagged?"#fca5a5":"#e2e8f0"}`, borderRadius:"8px", fontSize:"12px", fontWeight:"700", color:r.damageFlagged?"#dc2626":"#64748b", background:r.damageFlagged?"#fef2f2":"#fff", cursor:flagging===r._id?"not-allowed":"pointer" }}>
+                      {flagging===r._id ? "..." : r.damageFlagged ? "Unflag" : "Flag Damage"}
+                    </button>
+                    <button disabled={toggling===r._id} onClick={() => toggleReview(r._id, isReviewed)}
+                      style={{ padding:"6px 14px", border:`1px solid ${isReviewed?"#e2e8f0":"#86efac"}`, borderRadius:"8px", fontSize:"12px", fontWeight:"700", color:isReviewed?"#64748b":"#15803d", background:isReviewed?"#f1f5f9":"#f0fdf4", cursor:toggling===r._id?"not-allowed":"pointer" }}>
+                      {toggling===r._id ? "..." : isReviewed ? "Mark Unreviewed" : "Mark Reviewed"}
+                    </button>
+                  </div>
+                </div>
+                
+                <div style={{ marginTop:"16px", display:"flex", gap:"24px" }}>
+                  <div>
+                    <span style={{ fontSize:"11px", fontWeight:"700", color:"#94a3b8", textTransform:"uppercase" }}>Pickup Report:</span>
+                    <span style={{ fontSize:"12px", fontWeight:"600", color:r.preTrip?.submittedAt ? "#0f172a" : "#cbd5e1", marginLeft:"8px" }}>
+                      {r.preTrip?.submittedAt ? "Clean ✓" : "None"}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize:"11px", fontWeight:"700", color:"#94a3b8", textTransform:"uppercase" }}>Return Report:</span>
+                    <span style={{ fontSize:"12px", fontWeight:"600", color:r.postTrip?.submittedAt ? "#0f172a" : "#cbd5e1", marginLeft:"8px" }}>
+                      {r.postTrip?.submittedAt ? "Submitted ✓" : "None"}
+                    </span>
+                  </div>
+                </div>
+
+                {expandedId === r._id && (
+                  <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                    {/* Pre-Trip Photos */}
+                    <div>
+                      <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>PICKUP REPORT</h4>
+                      {r.preTrip?.photos?.length > 0 ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          {r.preTrip.photos.map((src, i) => (
+                            <img key={i} src={src} alt="Pre-trip" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Not submitted</p>
+                      )}
+                    </div>
+                    {/* Post-Trip Photos */}
+                    <div>
+                      <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px" }}>RETURN REPORT</h4>
+                      {r.postTrip?.photos?.length > 0 ? (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          {r.postTrip.photos.map((src, i) => (
+                            <img key={i} src={src} alt="Post-trip" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Not submitted</p>
+                      )}
+                      
+                      {r.damageNote && (
+                        <div style={{ marginTop: 12, padding: "10px 12px", background: "#fef2f2", borderLeft: "3px solid #dc2626", borderRadius: "0 8px 8px 0" }}>
+                          <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#dc2626", textTransform: "uppercase" }}>Customer Damage Note:</p>
+                          <p style={{ margin: 0, fontSize: 13, color: "#7f1d1d" }}>"{r.damageNote}"</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Documents Panel ──────────────────────────────────────────────────────────
+function DocumentsPanel() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
+  const token = localStorage.getItem("token");
+
+  const fetchPending = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(`${BASE_URL}/api/users/documents/pending`, { headers: { Authorization: `Bearer ${token}` } });
+      setUsers(Array.isArray(data) ? data : []);
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPending(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleReview = async (id, action) => {
+    let reason = "";
+    if (action === "reject") {
+      reason = window.prompt("Enter rejection reason for this user:");
+      if (reason === null) return; // cancelled
+    }
+    setProcessing(id);
+    try {
+      await axios.patch(`${BASE_URL}/api/users/${id}/documents/review`, { action, reason }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchPending();
+    } catch(e) {
+      alert(e.response?.data?.message || "Failed to submit review.");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  if (loading) return <div style={card}><Spinner /></div>;
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
+        <div>
+          <h2 style={{ fontSize:"17px", fontWeight:"700", color:"#0f172a", margin:0 }}>Document Verification</h2>
+          <p style={{ fontSize:"13px", color:"#64748b", margin:"2px 0 0" }}>{users.length} users waiting for review</p>
+        </div>
+      </div>
+      
+      {users.length === 0 ? (
+        <div style={card}><EmptyState icon={<FaFileAlt />} label="No pending documents" hint="All good! There are no users waiting for document verification." /></div>
+      ) : (
+        <div style={{ display: "grid", gap: 16 }}>
+          {users.map(u => (
+            <div key={u._id} style={{ ...card, padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{u.name}</h3>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 13, color: "#64748b" }}>{u.email}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 12 }}>{u.role}</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <button disabled={processing === u._id} onClick={() => handleReview(u._id, 'reject')}
+                    style={{ padding:"8px 16px", border:"1px solid #fca5a5", borderRadius:"8px", fontSize:"13px", fontWeight:"600", color:"#dc2626", background:"#fff", cursor:processing===u._id?"not-allowed":"pointer" }}>
+                    {processing === u._id ? "..." : "Reject"}
+                  </button>
+                  <button disabled={processing === u._id} onClick={() => handleReview(u._id, 'approve')}
+                    style={{ padding:"8px 16px", border:"none", borderRadius:"8px", fontSize:"13px", fontWeight:"600", color:"#fff", background:"linear-gradient(135deg,#10b981,#059669)", cursor:processing===u._id?"not-allowed":"pointer" }}>
+                    {processing === u._id ? "..." : "Approve"}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Citizenship (Front)</span>
+                  {u.documents?.citizenshipFront ? (
+                    <img src={u.documents.citizenshipFront} alt="Citizenship Front" style={{ width: "100%", aspectRatio: "1.6/1", objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  ) : <span style={{ fontSize: 12, color: "#cbd5e1" }}>Missing</span>}
+                </div>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Citizenship (Back)</span>
+                  {u.documents?.citizenshipBack ? (
+                    <img src={u.documents.citizenshipBack} alt="Citizenship Back" style={{ width: "100%", aspectRatio: "1.6/1", objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  ) : <span style={{ fontSize: 12, color: "#cbd5e1" }}>Missing</span>}
+                </div>
+                {u.documents?.license && (
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Driving License</span>
+                    {u.documents?.license ? (
+                      <img src={u.documents.license} alt="License" style={{ width: "100%", aspectRatio: "1.6/1", objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                    ) : <span style={{ fontSize: 12, color: "#cbd5e1" }}>Missing</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Management() {
   const user    = (()=>{ try{return JSON.parse(localStorage.getItem("user"));}catch{return null;} })();
@@ -1250,18 +1513,31 @@ export default function Management() {
   const [activeTab,setActiveTab]=useState(visibleTabs[0]?.id||"overview");
   const [bookings, setBookings] =useState([]);
   const [vehicles, setVehicles] =useState([]);
+  const [conditionReports, setConditionReports] = useState([]);
+  const [pendingDocsCount, setPendingDocsCount] = useState(0);
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const token=localStorage.getItem("token");
 
+  const fetchPendingDocs=()=>{
+    axios.get(`${BASE_URL}/api/users/documents/pending`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>setPendingDocsCount(Array.isArray(r.data)?r.data.length:0)).catch(()=>{});
+  };
+
+  const fetchConditionReports=()=>{
+    axios.get(`${BASE_URL}/api/condition-reports`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>setConditionReports(Array.isArray(r.data)?r.data:[])).catch(()=>{});
+  };
+
+  const fetchBookings=()=>{
+    axios.get(ENDPOINTS.BOOKINGS,{headers:{Authorization:`Bearer ${token}`}}).then(r=>setBookings(Array.isArray(r.data)?r.data:[])).catch(()=>{});
+  };
+
   useEffect(()=>{
+    fetchConditionReports();
+    fetchPendingDocs();
     if(role==="STAFF")return;
     fetchBookings();
     axios.get(ENDPOINTS.VEHICLES,{headers:{Authorization:`Bearer ${token}`}}).then(r=>setVehicles(Array.isArray(r.data)?r.data:[])).catch(()=>{});
   },[]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchBookings=()=>{
-    axios.get(ENDPOINTS.BOOKINGS,{headers:{Authorization:`Bearer ${token}`}}).then(r=>setBookings(Array.isArray(r.data)?r.data:[])).catch(()=>{});
-  };
   const handleCashPayment=async id=>{ try{await axios.patch(`${ENDPOINTS.BOOKINGS}/${id}/cash-payment`,{},{headers:{Authorization:`Bearer ${token}`}});fetchBookings();}catch(e){alert(e.response?.data?.message||"Failed.");} };
   const handleCancel=async id=>{ try{await axios.patch(`${ENDPOINTS.BOOKINGS}/${id}/admin-cancel`,{},{headers:{Authorization:`Bearer ${token}`}});fetchBookings();}catch(e){alert(e.response?.data?.message||"Failed.");} };
   const handleDeleteBooking=async id=>{
@@ -1272,15 +1548,15 @@ export default function Management() {
 
   const renderContent=()=>{
     switch(activeTab){
-      case "overview":  return <OverviewPanel role={role} bookings={bookings} vehicles={vehicles} onCashPayment={handleCashPayment} onCancel={handleCancel} />;
+      case "overview":  return <OverviewPanel role={role} bookings={bookings} vehicles={vehicles} conditionReports={conditionReports} onCashPayment={handleCashPayment} onCancel={handleCancel} pendingDocsCount={pendingDocsCount} />;
       case "analytics": return <GenericPanel title="Analytics & Reports" subtitle="Revenue and usage stats" icon={<FaChartBar />} hint="Connect your payment gateway to see real analytics." />;
       case "bookings":  return <div style={card}><PanelHeader title="All Bookings" subtitle="Full booking management" action={<div style={{display:"flex",gap:8}}><button onClick={()=>setShowWalkInModal(true)} style={{ background:"#10b981", color:"#fff", border:"none", borderRadius:"10px", padding:"8px 16px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>+ Walk-in Booking</button><button onClick={fetchBookings} style={{ background:"#F97316", color:"#fff", border:"none", borderRadius:"10px", padding:"8px 16px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>Refresh</button></div>} />{bookings.length===0?<EmptyState icon={<FaClipboardList />} label="No bookings yet" hint="Bookings appear once customers reserve." />:<BookingsTable bookings={bookings} onCashPayment={handleCashPayment} onCancel={handleCancel} onDelete={handleDeleteBooking} showActions={true} />}</div>;
       case "vehicles":  return <VehiclesPanel isAdmin={role==="ADMIN"||role==="OWNER"} />;
       case "drivers":   return <DriversPanel  isAdmin={role==="ADMIN"||role==="OWNER"} />;
       case "fines":     return <FinesPanel />;
       case "customers": return <CustomersPanel />;
-      case "documents": return <GenericPanel title="Document Verification" subtitle="Customer and driver verifications" icon={<FaFileAlt />} hint="Submitted documents appear here." />;
-      case "disputes":  return <GenericPanel title="Dispute Management" subtitle="Damage reports and complaints" icon={<FaExclamationTriangle />} hint="Disputes appear here." />;
+      case "documents": return <DocumentsPanel />;
+      case "condition-reports": return <ConditionReportsPanel reports={conditionReports} fetchReports={fetchConditionReports} />;
       case "staff":     return <GenericPanel title="Staff Management" subtitle="Manage admin and staff accounts" icon={<FaShieldAlt />} hint="Staff accounts appear here." />;
       default: return null;
     }
