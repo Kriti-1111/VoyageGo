@@ -12,16 +12,6 @@ const ESEWA_FORM_URL =
 const ESEWA_STATUS_URL =
   "https://rc-epay.esewa.com.np/api/epay/transaction/status/";
 
-// ── Khalti v2 (Sandbox) ───────────────────────────────────────────────────────
-// Sandbox base: https://dev.khalti.com/api/v2/
-// Production base: https://khalti.com/api/v2/
-// Test credentials: 9800000001 / MPIN: 1111 / OTP: 987654
-// Get your sandbox key from: https://test-admin.khalti.com
-const KHALTI_SECRET =
-  process.env.KHALTI_SECRET_KEY ||
-  "live_secret_key_68791341fdd94846a146f0457ff7b455";
-const KHALTI_INITIATE_URL = "https://dev.khalti.com/api/v2/epayment/initiate/";
-const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
@@ -291,180 +281,6 @@ export const esewaFineSuccess = async (req, res) => {
   }
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// KHALTI — BOOKING PAYMENT
-// ═════════════════════════════════════════════════════════════════════════════
-
-// POST /api/pay/khalti/initiate
-export const khaltiInitiate = async (req, res) => {
-  try {
-    const { bookingId } = req.body;
-    const booking = await Booking.findById(bookingId).populate(
-      "customer",
-      "name email phone",
-    );
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found." });
-    if (String(booking.customer._id) !== String(req.user._id))
-      return res.status(403).json({ message: "Not authorised." });
-    if (booking.paymentStatus === PAYMENT_STATUS.PAID)
-      return res.status(400).json({ message: "Already paid." });
-
-    const { data } = await axios.post(
-      KHALTI_INITIATE_URL,
-      {
-        return_url: `${FRONTEND_URL}/payment/khalti/return`,
-        website_url: `${FRONTEND_URL}`,
-        amount: booking.totalPrice * 100, // paisa
-        purchase_order_id: String(bookingId),
-        purchase_order_name: `VoyageGo Booking`,
-        customer_info: {
-          name: booking.customer?.name || "Customer",
-          email: booking.customer?.email || "customer@voyagego.com",
-          phone: booking.customer?.phone || "9800000000",
-        },
-      },
-      {
-        headers: {
-          Authorization: `Key ${KHALTI_SECRET}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    res.json({ payment_url: data.payment_url, pidx: data.pidx });
-  } catch (e) {
-    console.error("khaltiInitiate:", e.response?.data || e.message);
-    res
-      .status(500)
-      .json({
-        message:
-          e.response?.data?.detail || "Failed to initiate Khalti payment.",
-      });
-  }
-};
-
-// POST /api/pay/khalti/verify  { pidx }
-export const khaltiVerify = async (req, res) => {
-  try {
-    const { pidx } = req.body;
-    if (!pidx) return res.status(400).json({ message: "Missing pidx." });
-
-    const { data } = await axios.post(
-      KHALTI_LOOKUP_URL,
-      { pidx },
-      {
-        headers: {
-          Authorization: `Key ${KHALTI_SECRET}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (data.status !== "Completed")
-      return res
-        .status(400)
-        .json({ message: `Khalti payment status: ${data.status}` });
-
-    const bookingId = data.purchase_order_id;
-    const booking = await markBookingPaid(bookingId, "Khalti", pidx);
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found." });
-
-    res.json({ message: "Payment verified.", booking });
-  } catch (e) {
-    console.error("khaltiVerify:", e.response?.data || e.message);
-    res.status(500).json({ message: "Khalti verification failed." });
-  }
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
-// KHALTI — FINE PAYMENT
-// ═════════════════════════════════════════════════════════════════════════════
-
-// POST /api/pay/khalti/fine/initiate
-export const khaltiFinInitiate = async (req, res) => {
-  try {
-    const { bookingId } = req.body;
-    const booking = await Booking.findById(bookingId).populate(
-      "customer",
-      "name email phone",
-    );
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found." });
-    if (String(booking.customer._id) !== String(req.user._id))
-      return res.status(403).json({ message: "Not authorised." });
-    if (!booking.fine || booking.fine === 0)
-      return res.status(400).json({ message: "No fine on this booking." });
-    if (booking.finePaid)
-      return res.status(400).json({ message: "Fine already paid." });
-
-    const { data } = await axios.post(
-      KHALTI_INITIATE_URL,
-      {
-        return_url: `${FRONTEND_URL}/payment/fine/khalti/return`,
-        website_url: `${FRONTEND_URL}`,
-        amount: booking.fine * 100, // paisa
-        purchase_order_id: `FINE-${bookingId}`,
-        purchase_order_name: `VoyageGo Late Return Fine`,
-        customer_info: {
-          name: booking.customer?.name || "Customer",
-          email: booking.customer?.email || "customer@voyagego.com",
-          phone: booking.customer?.phone || "9800000000",
-        },
-      },
-      {
-        headers: {
-          Authorization: `Key ${KHALTI_SECRET}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    res.json({ payment_url: data.payment_url, pidx: data.pidx });
-  } catch (e) {
-    console.error("khaltiFinInitiate:", e.response?.data || e.message);
-    res
-      .status(500)
-      .json({
-        message:
-          e.response?.data?.detail || "Failed to initiate Khalti fine payment.",
-      });
-  }
-};
-
-// POST /api/pay/khalti/fine/verify  { pidx }
-export const khaltiFinVerify = async (req, res) => {
-  try {
-    const { pidx } = req.body;
-    if (!pidx) return res.status(400).json({ message: "Missing pidx." });
-
-    const { data } = await axios.post(
-      KHALTI_LOOKUP_URL,
-      { pidx },
-      {
-        headers: {
-          Authorization: `Key ${KHALTI_SECRET}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (data.status !== "Completed")
-      return res.status(400).json({ message: `Khalti status: ${data.status}` });
-
-    // purchase_order_id = "FINE-{bookingId}"
-    const bookingId = data.purchase_order_id.replace("FINE-", "");
-    const booking = await markFinePaid(bookingId, "Khalti", pidx);
-    if (!booking)
-      return res.status(404).json({ message: "Booking not found." });
-
-    res.json({ message: "Fine payment verified.", booking });
-  } catch (e) {
-    console.error("khaltiFinVerify:", e.response?.data || e.message);
-    res.status(500).json({ message: "Khalti fine verification failed." });
-  }
-};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // DEMO PAY — booking (FYP fallback)
@@ -502,7 +318,7 @@ export const walkinCashPay = async (req, res) => {
     const { bookingId } = req.body;
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ message: "Not found." });
-    
+
     if (!["ADMIN", "OWNER", "STAFF"].includes(req.user.role))
       return res.status(403).json({ message: "Not authorised." });
 
@@ -512,9 +328,9 @@ export const walkinCashPay = async (req, res) => {
     booking.status = BOOKING_STATUS.ACTIVE;
 
     await booking.save();
-    
+
     // Optionally alert the customer if needed, but not required for walkin
-    
+
     const updated = await Booking.findById(booking._id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")

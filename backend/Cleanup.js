@@ -8,7 +8,6 @@ await mongoose.connect(process.env.DATABASE_URL);
 // Delete all non-eSewa paid bookings
 const result = await Booking.deleteMany({
   $or: [
-    { paymentMethod: "Khalti" },
     { paymentMethod: null, paymentStatus: "Paid" }, // demo-pay leftovers
   ],
 });

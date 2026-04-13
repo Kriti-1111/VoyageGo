@@ -27,22 +27,28 @@ router.post("/:id/payment", auth, processPayment);
 router.post("/:id/pre-trip", auth, submitPreTrip);
 router.post("/:id/return", auth, returnVehicle);
 
-// ── Demo pay — FYP fallback (simulates Khalti verification result) ────────────
+// ── Demo pay — FYP fallback (simulates payment verification result) ────────────
 router.post("/:id/demo-pay", auth, async (req, res) => {
+  console.log("demoPay hit — bookingId:", req.params.id);
+  console.log("demoPay user:", req.user?._id);
   try {
     const booking = await Booking.findById(req.params.id).populate(
       "vehicle",
       "name",
     );
+    console.log("booking found:", !!booking);
     if (!booking) return res.status(404).json({ message: "Not found." });
     if (String(booking.customer) !== String(req.user._id))
       return res.status(403).json({ message: "Not authorised." });
     if (booking.paymentStatus === "Paid")
       return res.status(400).json({ message: "Already paid." });
 
-    booking.paymentMethod = "Khalti";
+    booking.paymentMethod = "Demo";
     booking.paymentStatus = "Paid";
     booking.paidAt = new Date();
+    
+    // ✅ Guard against paymentDetails being undefined
+    if (!booking.paymentDetails) booking.paymentDetails = {};
     booking.paymentDetails.reference = "DEMO-" + Date.now();
 
     if (!booking.requiresDriver || booking.status === "Confirmed") {
@@ -60,8 +66,8 @@ router.post("/:id/demo-pay", auth, async (req, res) => {
       booking: updated,
     });
   } catch (e) {
-    console.error("demoPay:", e);
-    res.status(500).json({ message: "Server error." });
+    console.error("demoPay error:", e.message, e.stack);
+    res.status(500).json({ message: "Server error.", detail: e.message });
   }
 });
 

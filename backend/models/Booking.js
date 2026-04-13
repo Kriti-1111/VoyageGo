@@ -70,15 +70,18 @@ const bookingSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["Card", "Wallet", "Bank", "Cash", "eSewa", "Khalti", null],
+      enum: ["Card", "Wallet", "Bank", "Cash", "eSewa", "Demo", null],
       default: null,
     },
     paymentDetails: {
-      last4: { type: String, default: null },
-      provider: { type: String, default: null },
-      reference: { type: String, default: null },
-      bank: { type: String, default: null },
-      transferDate: { type: Date, default: null },
+      type: {
+        last4: { type: String, default: null },
+        provider: { type: String, default: null },
+        reference: { type: String, default: null },
+        bank: { type: String, default: null },
+        transferDate: { type: Date, default: null },
+      },
+      default: {},
     },
     paidAt: { type: Date, default: null },
 
@@ -110,7 +113,7 @@ const bookingSchema = new mongoose.Schema(
     // Fine payment tracking — set when fine > 0 at return
     finePaid: { type: Boolean, default: false },
     finePaidAt: { type: Date, default: null },
-    finePaidVia: { type: String, default: null }, // 'eSewa' | 'Khalti' | 'Demo'
+    finePaidVia: { type: String, default: null }, // 'eSewa' | 'Demo'
   },
   { timestamps: true },
 );

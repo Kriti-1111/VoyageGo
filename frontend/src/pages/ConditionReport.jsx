@@ -319,10 +319,10 @@ export default function ConditionReport() {
       setSubmitting(true);
       await axios.post(
         `${API}/api/bookings/${bookingId}/pre-trip`,
-        { 
+        {
           photos: SLOTS.map((s) => photos[s.key]),
           damageFlagged,
-          damageNote
+          damageNote,
         },
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
@@ -456,7 +456,9 @@ export default function ConditionReport() {
                   color: "#0f172a",
                 }}
               >
-                {booking?.preTrip?.submittedAt ? "Return Vehicle Inspection" : "Pre-Trip Vehicle Inspection"}
+                {booking?.preTrip?.submittedAt
+                  ? "Return Vehicle Inspection"
+                  : "Pre-Trip Vehicle Inspection"}
               </h2>
               <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                 {[
@@ -752,12 +754,27 @@ export default function ConditionReport() {
               marginTop: 14,
             }}
           >
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 14,
+                color: "#0f172a",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={damageFlagged}
                 onChange={(e) => setDamageFlagged(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: "#dc2626", cursor: "pointer" }}
+                style={{
+                  width: 18,
+                  height: 18,
+                  accentColor: "#dc2626",
+                  cursor: "pointer",
+                }}
               />
               I noticed damage on this vehicle
             </label>
@@ -775,7 +792,7 @@ export default function ConditionReport() {
                   border: "1px solid #cbd5e1",
                   fontSize: 13,
                   fontFamily: "inherit",
-                  resize: "none"
+                  resize: "none",
                 }}
               />
             )}
@@ -876,7 +893,11 @@ export default function ConditionReport() {
                   <path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
               )}
-              {submitting ? "Submitting…" : (booking?.preTrip?.submittedAt ? "Submit Return Report" : "Start Trip")}
+              {submitting
+                ? "Submitting…"
+                : booking?.preTrip?.submittedAt
+                  ? "Submit Return Report"
+                  : "Start Trip"}
             </button>
           </div>
         </div>

@@ -19,7 +19,6 @@ import ReturnVehicle from "./pages/ReturnVehicle";
 import Payment from "./pages/Payment";
 import FinePay from "./pages/FinePay";
 import EsewaReturn from "./pages/EsewaReturn";
-import KhaltiReturn from "./pages/KhaltiReturn";
 import ErrorPage from "./pages/ErrorPage";
 import Layout from "./components/Layout";
 
@@ -109,8 +108,6 @@ export default function App() {
         {/* eSewa handles both booking and fine payments (?type=fine for fine) */}
         <Route path="/payment/esewa/return" element={<EsewaReturn />} />
         <Route path="/payment/esewa/failure" element={<EsewaReturn />} />
-        {/* Khalti handles both booking and fine payments (detects from purchase_order_id) */}
-        <Route path="/payment/khalti/return" element={<KhaltiReturn />} />
         {/* Fine payment page */}
         <Route
           path="/payment/fine/:bookingId"

@@ -104,15 +104,20 @@ function BookingActions({ booking, onCancel, navigate }) {
 
   const submitRating = async (r) => {
     try {
-      const driverId = booking.driver._id || booking.driver.id || booking.driver;
-      await axios.post(`${API}/api/drivers/${driverId}/rate`, { rating: r }, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      const driverId =
+        booking.driver._id || booking.driver.id || booking.driver;
+      await axios.post(
+        `${API}/api/drivers/${driverId}/rate`,
+        { rating: r },
+        {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        },
+      );
       localStorage.setItem(storageKey, "true");
       setRated(true);
       setRating(r);
       // Optional: show a small alert or let the UI reflect the success
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       alert("Failed to submit rating.");
     }
@@ -298,37 +303,63 @@ function BookingActions({ booking, onCancel, navigate }) {
     );
   }
 
-  if (booking.status === "Completed" && booking.requiresDriver !== false && booking.driver) {
+  if (
+    booking.status === "Completed" &&
+    booking.requiresDriver !== false &&
+    booking.driver
+  ) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, background: "#f8fafc", padding: "12px", borderRadius: 8 }}>
-         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Rate your driver</p>
-         {rated ? (
-           <p style={{ margin: 0, fontSize: 12, color: "#16a34a", fontWeight: 600 }}>Thanks for rating {booking.driver.name || "your driver"}!</p>
-         ) : (
-           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-             {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => submitRating(star)}
-                  onMouseEnter={() => setRating(star)}
-                  onMouseLeave={() => setRating(0)}
-                  style={{ 
-                    background: "none", 
-                    border: "none", 
-                    cursor: "pointer", 
-                    fontSize: 22, 
-                    padding: 0,
-                    filter: star <= rating ? "grayscale(0%)" : "grayscale(100%)",
-                    opacity: star <= rating ? 1 : 0.4,
-                    transition: "all 0.2s"
-                  }}
-                  title={`Rate ${star} stars`}
-                >
-                  ⭐
-                </button>
-             ))}
-           </div>
-         )}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          background: "#f8fafc",
+          padding: "12px",
+          borderRadius: 8,
+        }}
+      >
+        <p
+          style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#0f172a" }}
+        >
+          Rate your driver
+        </p>
+        {rated ? (
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              color: "#16a34a",
+              fontWeight: 600,
+            }}
+          >
+            Thanks for rating {booking.driver.name || "your driver"}!
+          </p>
+        ) : (
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => submitRating(star)}
+                onMouseEnter={() => setRating(star)}
+                onMouseLeave={() => setRating(0)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 22,
+                  padding: 0,
+                  filter: star <= rating ? "grayscale(0%)" : "grayscale(100%)",
+                  opacity: star <= rating ? 1 : 0.4,
+                  transition: "all 0.2s",
+                }}
+                title={`Rate ${star} stars`}
+              >
+                ⭐
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

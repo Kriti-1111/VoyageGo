@@ -6,10 +6,6 @@ import {
   esewaSuccess,
   esewaFineInitiate,
   esewaFineSuccess,
-  khaltiInitiate,
-  khaltiVerify,
-  khaltiFinInitiate,
-  khaltiFinVerify,
   demoPay,
   demoFinePay,
   walkinCashPay,
@@ -26,13 +22,6 @@ router.get("/esewa/success", esewaSuccess); // eSewa browser redirect (no auth)
 router.post("/esewa/fine/initiate", auth, esewaFineInitiate);
 router.get("/esewa/fine/success", esewaFineSuccess); // eSewa browser redirect (no auth)
 
-// ── Khalti — booking ──────────────────────────────────────────────────────────
-router.post("/khalti/initiate", auth, khaltiInitiate);
-router.post("/khalti/verify", auth, khaltiVerify);
-
-// ── Khalti — fine ─────────────────────────────────────────────────────────────
-router.post("/khalti/fine/initiate", auth, khaltiFinInitiate);
-router.post("/khalti/fine/verify", auth, khaltiFinVerify);
 
 // ── Demo pay (FYP fallback) ───────────────────────────────────────────────────
 router.post("/demo", auth, demoPay);

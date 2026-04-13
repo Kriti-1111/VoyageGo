@@ -70,22 +70,6 @@ export default function FinePay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
-  async function handleKhalti() {
-    setPaying("khalti");
-    try {
-      const { data } = await axios.post(
-        `${API}/api/pay/khalti/fine/initiate`,
-        { bookingId },
-        { headers: { Authorization: `Bearer ${getToken()}` } },
-      );
-      sessionStorage.setItem("token", getToken());
-      window.location.href = data.payment_url;
-    } catch (e) {
-      showToast(e.response?.data?.message || "Khalti failed.", "error");
-      setPaying(null);
-    }
-  }
-
   async function handleEsewa() {
     setPaying("esewa");
     try {
@@ -460,75 +444,6 @@ export default function FinePay() {
             <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
           </div>
 
-          {/* Khalti */}
-          <button
-            onClick={handleKhalti}
-            disabled={busy}
-            style={{
-              width: "100%",
-              padding: "13px 18px",
-              borderRadius: 12,
-              border: "1.5px solid #c4b5fd",
-              cursor: busy ? "not-allowed" : "pointer",
-              background: "#faf5ff",
-              color: "#5C2D91",
-              fontSize: 13,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              opacity: busy && paying !== "khalti" ? 0.4 : 1,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              if (!busy) {
-                e.currentTarget.style.background = "#5C2D91";
-                e.currentTarget.style.color = "#fff";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!busy) {
-                e.currentTarget.style.background = "#faf5ff";
-                e.currentTarget.style.color = "#5C2D91";
-              }
-            }}
-          >
-            {paying === "khalti" ? (
-              <>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    border: "2px solid #c4b5fd",
-                    borderTopColor: "#5C2D91",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                  }}
-                />
-                Redirecting…
-              </>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 40 40" fill="none">
-                  <rect width="40" height="40" rx="10" fill="#5C2D91" />
-                  <text
-                    x="50%"
-                    y="57%"
-                    dominantBaseline="middle"
-                    textAnchor="middle"
-                    fontSize="18"
-                    fontWeight="900"
-                    fill="white"
-                  >
-                    K
-                  </text>
-                </svg>
-                Pay fine with Khalti
-              </>
-            )}
-          </button>
-
           {/* eSewa */}
           <button
             onClick={handleEsewa}
@@ -608,7 +523,7 @@ export default function FinePay() {
                 textAlign: "center",
               }}
             >
-              Khalti & eSewa require merchant API keys — available after
+              eSewa requires merchant API keys — available after
               production setup
             </p>
           )}

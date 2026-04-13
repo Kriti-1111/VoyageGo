@@ -79,7 +79,7 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, "i") });
     if (!user) {
       return res
         .status(401)
