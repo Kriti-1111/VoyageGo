@@ -14,7 +14,13 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
-// ── Pricing mirrors server exactly ────────────────────────────────────────────
+// ── Demo mode ─────────────────────────────────────────────────────────────────
+// Set DEMO_MODE = false before going to production.
+const DEMO_MODE = true;
+const DEMO_VEHICLE_RATE = 10; // Rs 10 flat per booking
+const DEMO_DRIVER_RATE = 5; // Rs 5 flat per booking (only when driver selected)
+
+// ── Pricing ───────────────────────────────────────────────────────────────────
 function calcPrice(
   pricePerHour,
   startDate,
@@ -30,12 +36,28 @@ function calcPrice(
 
   if (rawHours < 1 || rawHours > 30 * 24) return null;
 
+  if (DEMO_MODE) {
+    const vehicleCost = DEMO_VEHICLE_RATE;
+    const driverCost = driverRatePerHour > 0 ? DEMO_DRIVER_RATE : 0;
+    return {
+      vehicleCost,
+      driverCost,
+      total: vehicleCost + driverCost,
+      vehicleDailyRate: DEMO_VEHICLE_RATE,
+      driverDailyRate: DEMO_DRIVER_RATE,
+      totalHours,
+      totalDays,
+      mode,
+      discount: 0,
+      isDemo: true,
+    };
+  }
+
   const dailyBase = pricePerHour * 24;
   const vehicleDailyRate = totalDays <= 6 ? dailyBase * 0.8 : dailyBase * 0.7;
   const driverDailyRate = driverRatePerHour * 8;
-
-  let vehicleCost = 0;
-  let driverCost = 0;
+  let vehicleCost = 0,
+    driverCost = 0;
 
   if (mode === "hourly") {
     vehicleCost = Math.round(totalHours * pricePerHour);
@@ -61,8 +83,8 @@ function calcPrice(
 }
 
 function fmtHours(h) {
-  const hrs = Math.floor(h);
-  const m = Math.round((h - hrs) * 60);
+  const hrs = Math.floor(h),
+    m = Math.round((h - hrs) * 60);
   return m ? `${hrs}h ${m}m` : `${hrs}h`;
 }
 function minNow() {
@@ -71,7 +93,7 @@ function minNow() {
   return d.toISOString().slice(0, 16);
 }
 
-// ── Driver availability calendar ──────────────────────────────────────────────
+// ── Driver Calendar ───────────────────────────────────────────────────────────
 function DriverCalendarStrip({ driver, slots, onClose }) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -83,10 +105,10 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
   const nextFree = futureSlots.length > 0 ? new Date(futureSlots[0].end) : null;
 
   function isBooked(day) {
-    const dayStart = new Date(year, month, day, 0, 0, 0);
-    const dayEnd = new Date(year, month, day, 23, 59, 59);
+    const ds = new Date(year, month, day, 0, 0, 0),
+      de = new Date(year, month, day, 23, 59, 59);
     return (slots || []).some(
-      (s) => new Date(s.start) <= dayEnd && new Date(s.end) >= dayStart,
+      (s) => new Date(s.start) <= de && new Date(s.end) >= ds,
     );
   }
 
@@ -96,7 +118,6 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
     month: "long",
     year: "numeric",
   });
-
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -110,15 +131,15 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
     d &&
     new Date(year, month, d) <
       new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const atMinMonth = year === now.getFullYear() && month === now.getMonth();
+  const atMin = year === now.getFullYear() && month === now.getMonth();
 
-  function prevMonth() {
+  function prev() {
     if (month === 0) {
       setMonth(11);
       setYear((y) => y - 1);
     } else setMonth((m) => m - 1);
   }
-  function nextMonth() {
+  function next() {
     if (month === 11) {
       setMonth(0);
       setYear((y) => y + 1);
@@ -196,7 +217,7 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
         </div>
         <div
           style={{
-            padding: "4px 10px 4px",
+            padding: "4px 10px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -214,16 +235,16 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
           </span>
           <div style={{ display: "flex", gap: 2 }}>
             <button
-              onClick={prevMonth}
-              disabled={atMinMonth}
+              onClick={prev}
+              disabled={atMin}
               style={{
                 background: "none",
                 border: "none",
                 borderRadius: 4,
                 width: 28,
                 height: 28,
-                cursor: atMinMonth ? "not-allowed" : "pointer",
-                color: atMinMonth ? "#dadce0" : "#5f6368",
+                cursor: atMin ? "not-allowed" : "pointer",
+                color: atMin ? "#dadce0" : "#5f6368",
                 fontSize: 16,
                 display: "flex",
                 alignItems: "center",
@@ -234,7 +255,7 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
               ‹
             </button>
             <button
-              onClick={nextMonth}
+              onClick={next}
               style={{
                 background: "none",
                 border: "none",
@@ -285,9 +306,9 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
         >
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
-            const booked = isBooked(d);
-            const today = isToday(d);
-            const past = isPast(d);
+            const booked = isBooked(d),
+              today = isToday(d),
+              past = isPast(d);
             return (
               <div
                 key={i}
@@ -325,7 +346,6 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
             borderTop: "1px solid #f1f5f9",
             display: "flex",
             gap: 12,
-            alignItems: "center",
           }}
         >
           <span
@@ -378,7 +398,7 @@ function DriverCalendarStrip({ driver, slots, onClose }) {
   );
 }
 
-// ── Driver popup ──────────────────────────────────────────────────────────────
+// ── Driver Popup ──────────────────────────────────────────────────────────────
 function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
   const [drivers, setDrivers] = useState([]);
   const [slots, setSlots] = useState({});
@@ -396,69 +416,65 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose, calDriver]);
 
-  // ── FIXED: removed setLoading(true) from effect body — moved inside async fn ──
   useEffect(() => {
     if (!vehicleId) return;
     let cancelled = false;
-
     async function load() {
-      // setLoading is called inside the async fn, not directly in the effect body
       if (!cancelled) setLoading(true);
       try {
         const { data } = await axios.get(`${API}/api/vehicles/${vehicleId}`);
         if (cancelled) return;
-        const driverList = data.drivers || [];
-        setDrivers(driverList);
-        const slotMap = {};
+        const dl = data.drivers || [];
+        setDrivers(dl);
+        const sm = {};
         await Promise.all(
-          driverList.map(async (d) => {
+          dl.map(async (d) => {
             const id = d._id || d.id;
             try {
               const { data: s } = await axios.get(
                 `${API}/api/drivers/${id}/availability`,
               );
-              slotMap[id] = s;
+              sm[id] = s;
             } catch {
-              slotMap[id] = [];
+              sm[id] = [];
             }
           }),
         );
-        if (!cancelled) setSlots(slotMap);
+        if (!cancelled) setSlots(sm);
       } catch {
         if (!cancelled) setDrivers([]);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-
     load();
     return () => {
       cancelled = true;
     };
   }, [vehicleId]);
 
-  function isConflict(driverId) {
+  function isConflict(id) {
     if (!startDate || !endDate) return false;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return (slots[driverId] || []).some(
-      (s) => new Date(s.start) < end && new Date(s.end) > start,
+    const s = new Date(startDate),
+      e = new Date(endDate);
+    return (slots[id] || []).some(
+      (sl) => new Date(sl.start) < e && new Date(sl.end) > s,
     );
   }
 
-  function unavailableUntil(driverId) {
+  function unavailableUntil(id) {
     if (!startDate || !endDate) return null;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const conflict = (slots[driverId] || [])
-      .filter((s) => new Date(s.start) < end && new Date(s.end) > start)
+    const s = new Date(startDate),
+      e = new Date(endDate);
+    const c = (slots[id] || [])
+      .filter((sl) => new Date(sl.start) < e && new Date(sl.end) > s)
       .sort((a, b) => new Date(a.end) - new Date(b.end));
-    if (!conflict.length) return null;
-    const until = new Date(conflict[conflict.length - 1].end);
+    if (!c.length) return null;
+    const u = new Date(c[c.length - 1].end);
     return (
-      until.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
+      u.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
       " at " +
-      until.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+      u.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     );
   }
 
@@ -534,7 +550,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
             &times;
           </button>
         </div>
-
         <div style={{ maxHeight: 280, overflowY: "auto" }}>
           {loading && (
             <p
@@ -566,10 +581,10 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
           )}
           {!loading &&
             filtered.map((d) => {
-              const id = d._id || d.id;
-              const conflict = isConflict(id);
-              const rate = d.driverRatePerHour || 0;
-              const until = conflict ? unavailableUntil(id) : null;
+              const id = d._id || d.id,
+                conflict = isConflict(id),
+                rate = d.driverRatePerHour || 0,
+                until = conflict ? unavailableUntil(id) : null;
               return (
                 <div
                   key={id}
@@ -637,7 +652,12 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                         : d.isAvailable
                           ? "🟢 Available"
                           : "Offline"}
-                      {rate > 0 && !conflict && ` · Rs ${rate}/hr`}
+                      {!conflict &&
+                        (DEMO_MODE
+                          ? ` · +Rs ${DEMO_DRIVER_RATE} (demo)`
+                          : rate > 0
+                            ? ` · Rs ${rate}/hr`
+                            : "")}
                     </p>
                   </div>
                   {conflict ? (
@@ -646,7 +666,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
                         e.stopPropagation();
                         setCalDriver(d);
                       }}
-                      title="View schedule"
                       style={{
                         flexShrink: 0,
                         background: "#f8fafc",
@@ -709,7 +728,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
               );
             })}
         </div>
-
         <div
           style={{
             padding: "10px 14px",
@@ -735,7 +753,6 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
           </button>
         </div>
       </div>
-
       {calDriver && (
         <DriverCalendarStrip
           driver={calDriver}
@@ -747,7 +764,7 @@ function DriverPopup({ vehicleId, startDate, endDate, onSelect, onClose }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const { carId } = useParams();
   const navigate = useNavigate();
@@ -755,13 +772,11 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!user) navigate("/login", { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line
 
   const [vehicle, setVehicle] = useState(null);
   const [loadingV, setLoadingV] = useState(true);
   const [vehicleErr, setVehicleErr] = useState(null);
-
   const [mode, setMode] = useState("hourly");
   const [startDT, setStartDT] = useState("");
   const [endDT, setEndDT] = useState("");
@@ -776,7 +791,6 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // ── FIXED: no setState called directly in effect body ──
   useEffect(() => {
     let cancelled = false;
     axios
@@ -892,7 +906,6 @@ export default function BookingPage() {
         </p>
       </div>
     );
-
   if (vehicleErr)
     return (
       <div
@@ -942,7 +955,6 @@ export default function BookingPage() {
         <button onClick={() => navigate(-1)} style={backBtn}>
           Back
         </button>
-
         <h1
           style={{
             margin: "0 0 4px",
@@ -956,6 +968,29 @@ export default function BookingPage() {
         <p style={{ margin: "0 0 28px", fontSize: 14, color: "#64748b" }}>
           {vehicle.name} · {vehicle.type} · {vehicle.company}
         </p>
+
+        {/* ── Demo banner ── */}
+        {DEMO_MODE && (
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontSize: 12,
+              color: "#92400e",
+              fontWeight: 600,
+              marginBottom: 18,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span>⚡</span>
+            Demo pricing active — Rs {DEMO_VEHICLE_RATE} vehicle · Rs{" "}
+            {DEMO_DRIVER_RATE} driver (flat rate for all bookings)
+          </div>
+        )}
 
         {!vehicle.isActive && (
           <div
@@ -975,7 +1010,7 @@ export default function BookingPage() {
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          {/* Rental type toggle */}
+          {/* Rental type */}
           <div>
             <label style={lbl}>Rental type</label>
             <div
@@ -1024,7 +1059,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Hourly pickers */}
+          {/* Date pickers */}
           {mode === "hourly" && (
             <div
               style={{
@@ -1064,8 +1099,6 @@ export default function BookingPage() {
               </div>
             </div>
           )}
-
-          {/* Daily pickers */}
           {mode === "daily" && (
             <div
               style={{
@@ -1190,7 +1223,7 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* Self-drive pickup */}
+          {/* Pickup (self-drive) */}
           {!requiresDriver && (
             <div>
               <label style={lbl}>Pickup option</label>
@@ -1312,8 +1345,11 @@ export default function BookingPage() {
                       </p>
                       <p style={{ margin: 0, fontSize: 11, color: "#64748b" }}>
                         Driver selected
-                        {driver.driverRatePerHour > 0 &&
-                          ` · Rs ${driver.driverRatePerHour}/hr`}
+                        {DEMO_MODE
+                          ? ` · +Rs ${DEMO_DRIVER_RATE} (demo)`
+                          : driver.driverRatePerHour > 0
+                            ? ` · Rs ${driver.driverRatePerHour}/hr`
+                            : ""}
                       </p>
                     </div>
                     <button
@@ -1419,16 +1455,40 @@ export default function BookingPage() {
                 animation: "fadeUp 0.2s ease",
               }}
             >
-              <p
+              <div
                 style={{
-                  margin: "0 0 12px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#0f172a",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 12,
                 }}
               >
-                Price summary
-              </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#0f172a",
+                  }}
+                >
+                  Price summary
+                </p>
+                {pricing.isDemo && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: "#fffbeb",
+                      color: "#92400e",
+                      border: "1px solid #fde68a",
+                      padding: "2px 8px",
+                      borderRadius: 20,
+                    }}
+                  >
+                    DEMO RATE
+                  </span>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                 <span
                   style={{
@@ -1471,15 +1531,17 @@ export default function BookingPage() {
               >
                 <span style={{ color: "#64748b" }}>
                   Vehicle rental
-                  {pricing.mode === "hourly"
-                    ? ` (${pricing.totalHours}h × Rs ${vehicle.pricePerHour}/hr)`
-                    : ` (${pricing.totalDays} day${pricing.totalDays > 1 ? "s" : ""} · ${pricing.discount}% off)`}
+                  {pricing.isDemo
+                    ? " (demo flat rate)"
+                    : pricing.mode === "hourly"
+                      ? ` (${pricing.totalHours}h × Rs ${vehicle.pricePerHour}/hr)`
+                      : ` (${pricing.totalDays} day${pricing.totalDays > 1 ? "s" : ""} · ${pricing.discount}% off)`}
                 </span>
                 <span style={{ color: "#334155", fontWeight: 600 }}>
                   Rs {pricing.vehicleCost.toLocaleString()}
                 </span>
               </div>
-              {requiresDriver && driver && driverRate > 0 && (
+              {requiresDriver && driver && (
                 <div
                   style={{
                     display: "flex",
@@ -1490,9 +1552,11 @@ export default function BookingPage() {
                 >
                   <span style={{ color: "#64748b" }}>
                     Driver fee
-                    {pricing.mode === "hourly"
-                      ? ` (${pricing.totalHours}h × Rs ${driverRate}/hr)`
-                      : ` (${pricing.totalDays} day${pricing.totalDays > 1 ? "s" : ""} × Rs ${pricing.driverDailyRate}/day)`}
+                    {pricing.isDemo
+                      ? " (demo flat rate)"
+                      : driverRate > 0
+                        ? ` (${pricing.totalHours}h × Rs ${driverRate}/hr)`
+                        : ""}
                   </span>
                   <span style={{ color: "#334155", fontWeight: 600 }}>
                     Rs {pricing.driverCost.toLocaleString()}
