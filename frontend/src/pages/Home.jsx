@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function FeatureIcon({ type }) {
   const props = {
-    width: 22,
-    height: 22,
+    width: 26,
+    height: 26,
     viewBox: "0 0 24 24",
     fill: "none",
     strokeWidth: "1.5",
@@ -55,8 +57,8 @@ function FeatureIcon({ type }) {
 
 function StepIcon({ type }) {
   const props = {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
     viewBox: "0 0 24 24",
     fill: "none",
     strokeWidth: "2",
@@ -91,6 +93,23 @@ function StepIcon({ type }) {
 
 export default function Home() {
   const navigate = useNavigate();
+  const [vehicles, setVehicles] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/vehicles")
+      .then(({ data }) => setVehicles(data.filter((v) => v.isActive)));
+    axios
+      .get("http://localhost:5000/api/drivers")
+      .then(({ data }) =>
+        setDrivers(data.filter((d) => d.isDriverVerified).slice(0, 4)),
+      );
+  }, []);
+
+  const featured = vehicles.slice(0, 4);
+  const popular = vehicles.slice(4, 8);
+
   const user = (() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
@@ -101,39 +120,30 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .home-grid {
+            grid-template-columns: repeat(1, 1fr) !important;
+          }
+          .home-section-padding {
+            padding: 48px 20px !important;
+          }
+        }
+      `}</style>
       {/* Hero */}
       <section
         style={{
           background:
-            "linear-gradient(135deg,#1F2937 0%,#111827 55%,#7C2D12 100%)",
+            "linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url('/hero-bg.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
           padding: "100px 32px 120px",
           textAlign: "center",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: "-100px",
-            right: "-100px",
-            width: "400px",
-            height: "400px",
-            borderRadius: "50%",
-            background: "rgba(249,115,22,0.12)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-80px",
-            left: "-60px",
-            width: "300px",
-            height: "300px",
-            borderRadius: "50%",
-            background: "rgba(234,88,12,0.1)",
-          }}
-        />
         <div
           style={{ maxWidth: "700px", margin: "0 auto", position: "relative" }}
         >
@@ -260,21 +270,595 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Featured Vehicles ── */}
+      <div
+        className="home-section-padding"
+        style={{ padding: "72px 40px 0", maxWidth: 1280, margin: "0 auto" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: 8,
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
+              Featured Vehicles
+            </h2>
+            <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>
+              Handpicked vehicles for your next trip
+            </p>
+          </div>
+          <a
+            href="/explore"
+            style={{
+              color: "#F97316",
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            View All →
+          </a>
+        </div>
+
+        <div
+          className="home-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 20,
+            marginTop: 24,
+          }}
+        >
+          {featured.map((v) => (
+            <div
+              key={v._id}
+              style={{
+                background: "#fff",
+                borderRadius: 14,
+                boxShadow:
+                  "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)",
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s",
+              }}
+              onClick={() => navigate(`/car/${v._id}`)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow =
+                  "0 12px 32px rgba(0,0,0,0.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "";
+                e.currentTarget.style.boxShadow =
+                  "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  aspectRatio: "3/2",
+                  background: "#f8fafc",
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={v.imageUrl}
+                  alt={v.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+              <div style={{ padding: "14px 16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {v.name}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      color: "#F97316",
+                      background: "#FFF7ED",
+                      padding: "2px 7px",
+                      borderRadius: 10,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {v.type}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    margin: "4px 0 10px",
+                    fontSize: 11,
+                    color: "#64748b",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {v.description || v.company}
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{ fontWeight: 700, color: "#F97316", fontSize: 13 }}
+                  >
+                    Rs {v.pricePerHour}/hr
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/car/${v._id}`);
+                    }}
+                    style={{
+                      background: "#F97316",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 7,
+                      padding: "6px 14px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontSize: 11,
+                    }}
+                  >
+                    Book Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Most Popular ── */}
+      <div
+        className="home-section-padding"
+        style={{ padding: "48px 40px 72px", maxWidth: 1280, margin: "0 auto" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            marginBottom: 8,
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
+              Most Popular
+            </h2>
+            <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>
+              Top choices from our fleet
+            </p>
+          </div>
+          <a
+            href="/explore"
+            style={{
+              color: "#F97316",
+              fontWeight: 600,
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            View All →
+          </a>
+        </div>
+
+        <div
+          className="home-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 16,
+            marginTop: 24,
+          }}
+        >
+          {popular.map((v) => (
+            <div
+              key={v._id}
+              style={{
+                background: "#fff",
+                borderRadius: 14,
+                boxShadow:
+                  "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)",
+                overflow: "hidden",
+                cursor: "pointer",
+                transition: "transform 0.2s, box-shadow 0.2s",
+              }}
+              onClick={() => navigate(`/car/${v._id}`)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow =
+                  "0 12px 32px rgba(0,0,0,0.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "";
+                e.currentTarget.style.boxShadow =
+                  "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  aspectRatio: "3/2",
+                  background: "#f8fafc",
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={v.imageUrl}
+                  alt={v.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+              <div style={{ padding: "14px 16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {v.name}
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      color: "#F97316",
+                      background: "#FFF7ED",
+                      padding: "2px 7px",
+                      borderRadius: 10,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {v.type}
+                  </span>
+                </div>
+                <p
+                  style={{
+                    margin: "4px 0 10px",
+                    fontSize: 11,
+                    color: "#64748b",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {v.description || v.company}
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{ fontWeight: 700, color: "#F97316", fontSize: 13 }}
+                  >
+                    Rs {v.pricePerHour}/hr
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/car/${v._id}`);
+                    }}
+                    style={{
+                      background: "#F97316",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 7,
+                      padding: "6px 12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontSize: 11,
+                    }}
+                  >
+                    Book
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Professional Drivers ── */}
+      <div style={{ background: "#f8fafc" }}>
+        <div
+          className="home-section-padding"
+          style={{ padding: "72px 40px", maxWidth: 1280, margin: "0 auto" }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              marginBottom: 8,
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
+                Professional Drivers
+              </h2>
+              <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 14 }}>
+                Experienced drivers ready to take you anywhere
+              </p>
+            </div>
+            <a
+              href="/drivers"
+              style={{
+                color: "#F97316",
+                fontWeight: 600,
+                fontSize: 14,
+                textDecoration: "none",
+              }}
+            >
+              View All →
+            </a>
+          </div>
+
+          <div
+            className="home-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gap: 16,
+              marginTop: 24,
+            }}
+          >
+            {drivers.map((d) => {
+              const isNew = d.ratingCount === 0;
+              const avg = isNew
+                ? null
+                : (d.totalRating / d.ratingCount).toFixed(1);
+              const initials = d.name
+                .split(" ")
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase();
+              return (
+                <div
+                  key={d._id}
+                  style={{
+                    background: "#fff",
+                    borderRadius: 14,
+                    boxShadow:
+                      "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                  }}
+                  onClick={() => navigate("/drivers")}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 12px 32px rgba(0,0,0,0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "";
+                    e.currentTarget.style.boxShadow =
+                      "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)";
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "100%",
+                      aspectRatio: "3/2",
+                      background:
+                        "linear-gradient(135deg,#FFF7ED 0%, #FFEDD5 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      position: "relative",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg,#F97316,#EA580C)",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 22,
+                        fontWeight: 700,
+                        boxShadow: "0 8px 24px rgba(249,115,22,0.3)",
+                      }}
+                    >
+                      {initials}
+                    </div>
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        fontSize: 9,
+                        color: "#0369a1",
+                        background: "#e0f2fe",
+                        padding: "2px 7px",
+                        borderRadius: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      ✓ VERIFIED
+                    </span>
+                  </div>
+
+                  <div style={{ padding: "14px 16px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: 14,
+                          fontWeight: 700,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {d.name}
+                      </h3>
+                      {isNew ? (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            color: "#059669",
+                            background: "#ecfdf5",
+                            padding: "2px 7px",
+                            borderRadius: 10,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          NEW
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "#f59e0b",
+                            fontWeight: 600,
+                            flexShrink: 0,
+                          }}
+                        >
+                          ★ {avg}
+                        </span>
+                      )}
+                    </div>
+                    <p
+                      style={{
+                        margin: "4px 0 10px",
+                        fontSize: 11,
+                        color: "#64748b",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {d.district} district
+                      {d.languages?.length
+                        ? ` • ${d.languages.join(", ")}`
+                        : ""}
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: "#F97316",
+                          fontSize: 13,
+                        }}
+                      >
+                        Rs {d.driverRatePerHour}/hr
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/drivers");
+                        }}
+                        style={{
+                          background: "#F97316",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 7,
+                          padding: "6px 12px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          fontSize: 11,
+                        }}
+                      >
+                        Book
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Stats bar */}
       <section
         style={{
           background: "#fff",
           borderBottom: "1px solid #f1f5f9",
-          padding: "32px",
+          padding: "40px 32px",
         }}
       >
         <div
           style={{
-            maxWidth: "900px",
+            maxWidth: "1080px",
             margin: "0 auto",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))",
-            gap: "32px",
+            gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
+            gap: "40px",
             textAlign: "center",
           }}
         >
@@ -287,7 +871,7 @@ export default function Home() {
             <div key={s.label}>
               <p
                 style={{
-                  fontSize: "32px",
+                  fontSize: "40px",
                   fontWeight: "800",
                   color: "#F97316",
                   margin: 0,
@@ -298,9 +882,9 @@ export default function Home() {
               </p>
               <p
                 style={{
-                  fontSize: "14px",
+                  fontSize: "15px",
                   color: "#64748b",
-                  margin: "4px 0 0",
+                  margin: "6px 0 0",
                   fontWeight: "500",
                 }}
               >
@@ -312,29 +896,29 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section style={{ padding: "80px 32px", background: "#f8fafc" }}>
-        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "56px" }}>
+      <section style={{ padding: "96px 32px", background: "#f8fafc" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: "64px" }}>
             <h2
               style={{
-                fontSize: "32px",
+                fontSize: "40px",
                 fontWeight: "800",
                 color: "#0f172a",
-                margin: "0 0 12px",
+                margin: "0 0 14px",
                 letterSpacing: "-0.5px",
               }}
             >
               Why choose VoyageGo?
             </h2>
-            <p style={{ fontSize: "16px", color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: "17px", color: "#64748b", margin: 0 }}>
               Everything you need for stress-free travel
             </p>
           </div>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
-              gap: "20px",
+              gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+              gap: "24px",
             }}
           >
             {[
@@ -380,7 +964,7 @@ export default function Home() {
                 style={{
                   background: "#fff",
                   borderRadius: "16px",
-                  padding: "24px",
+                  padding: "32px",
                   border: "1px solid #f1f5f9",
                   transition: "transform 0.2s, box-shadow 0.2s",
                   cursor: "default",
@@ -397,34 +981,34 @@ export default function Home() {
               >
                 <div
                   style={{
-                    width: "48px",
-                    height: "48px",
+                    width: "56px",
+                    height: "56px",
                     background: f.bg,
-                    borderRadius: "12px",
+                    borderRadius: "14px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: "16px",
+                    marginBottom: "20px",
                   }}
                 >
                   <FeatureIcon type={f.icon} />
                 </div>
                 <h3
                   style={{
-                    fontSize: "15px",
+                    fontSize: "17px",
                     fontWeight: "700",
                     color: "#0f172a",
-                    margin: "0 0 8px",
+                    margin: "0 0 10px",
                   }}
                 >
                   {f.title}
                 </h3>
                 <p
                   style={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     color: "#64748b",
                     margin: 0,
-                    lineHeight: 1.6,
+                    lineHeight: 1.7,
                   }}
                 >
                   {f.desc}
@@ -436,29 +1020,29 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section style={{ padding: "80px 32px", background: "#fff" }}>
+      <section style={{ padding: "96px 32px", background: "#fff" }}>
         <div
-          style={{ maxWidth: "900px", margin: "0 auto", textAlign: "center" }}
+          style={{ maxWidth: "1080px", margin: "0 auto", textAlign: "center" }}
         >
           <h2
             style={{
-              fontSize: "32px",
+              fontSize: "40px",
               fontWeight: "800",
               color: "#0f172a",
-              margin: "0 0 12px",
+              margin: "0 0 14px",
               letterSpacing: "-0.5px",
             }}
           >
             How it works
           </h2>
-          <p style={{ fontSize: "16px", color: "#64748b", margin: "0 0 56px" }}>
+          <p style={{ fontSize: "17px", color: "#64748b", margin: "0 0 64px" }}>
             Get on the road in 3 simple steps
           </p>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-              gap: "32px",
+              gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+              gap: "40px",
             }}
           >
             {[
@@ -487,15 +1071,15 @@ export default function Home() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: "14px",
+                  gap: "16px",
                 }}
               >
                 <div
                   style={{
-                    width: "60px",
-                    height: "60px",
+                    width: "72px",
+                    height: "72px",
                     background: "linear-gradient(135deg,#F97316,#EA580C)",
-                    borderRadius: "16px",
+                    borderRadius: "18px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -506,7 +1090,7 @@ export default function Home() {
                 </div>
                 <span
                   style={{
-                    fontSize: "11px",
+                    fontSize: "12px",
                     fontWeight: "800",
                     color: "#F97316",
                     letterSpacing: "1.5px",
@@ -516,7 +1100,7 @@ export default function Home() {
                 </span>
                 <h3
                   style={{
-                    fontSize: "16px",
+                    fontSize: "18px",
                     fontWeight: "700",
                     color: "#0f172a",
                     margin: 0,
@@ -526,10 +1110,10 @@ export default function Home() {
                 </h3>
                 <p
                   style={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     color: "#64748b",
                     margin: 0,
-                    lineHeight: 1.6,
+                    lineHeight: 1.7,
                   }}
                 >
                   {s.desc}
@@ -545,39 +1129,39 @@ export default function Home() {
         <section
           style={{
             background: "linear-gradient(135deg,#1F2937,#111827)",
-            padding: "80px 32px",
+            padding: "96px 32px",
             textAlign: "center",
           }}
         >
-          <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+          <div style={{ maxWidth: "640px", margin: "0 auto" }}>
             <h2
               style={{
-                fontSize: "32px",
+                fontSize: "40px",
                 fontWeight: "800",
                 color: "#fff",
-                margin: "0 0 12px",
+                margin: "0 0 14px",
                 letterSpacing: "-0.5px",
               }}
             >
               Ready to get started?
             </h2>
             <p
-              style={{ fontSize: "16px", color: "#94a3b8", margin: "0 0 32px" }}
+              style={{ fontSize: "17px", color: "#94a3b8", margin: "0 0 36px" }}
             >
               Join thousands of travellers already using VoyageGo
             </p>
             <div
-              style={{ display: "flex", gap: "12px", justifyContent: "center" }}
+              style={{ display: "flex", gap: "14px", justifyContent: "center" }}
             >
               <button
                 onClick={() => navigate("/register")}
                 style={{
-                  padding: "13px 28px",
-                  borderRadius: "10px",
+                  padding: "15px 32px",
+                  borderRadius: "12px",
                   border: "none",
                   background: "linear-gradient(135deg,#F97316,#EA580C)",
                   color: "#fff",
-                  fontSize: "15px",
+                  fontSize: "16px",
                   fontWeight: "700",
                   cursor: "pointer",
                 }}
@@ -587,12 +1171,12 @@ export default function Home() {
               <button
                 onClick={() => navigate("/login")}
                 style={{
-                  padding: "13px 28px",
-                  borderRadius: "10px",
+                  padding: "15px 32px",
+                  borderRadius: "12px",
                   border: "1px solid rgba(255,255,255,0.2)",
                   background: "transparent",
                   color: "#e2e8f0",
-                  fontSize: "15px",
+                  fontSize: "16px",
                   fontWeight: "600",
                   cursor: "pointer",
                 }}

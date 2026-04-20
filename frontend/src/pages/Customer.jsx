@@ -802,7 +802,7 @@ export default function Customer() {
       >
         <div
           style={{
-            background: "linear-gradient(135deg,#0f172a,#1e293b)",
+            background: "#1C1917",
             padding: "32px",
             position: "relative",
             overflow: "hidden",

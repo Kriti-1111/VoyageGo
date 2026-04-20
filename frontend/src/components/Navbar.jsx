@@ -47,6 +47,7 @@ const ROLE_CONFIG = {
 
 const PUBLIC_NAV = [
   { to: "/", label: "Home" },
+  { to: "/about", label: "About Us" },
   { to: "/explore", label: "Explore Vehicles" },
   { to: "/drivers", label: "Explore Drivers" },
 ];
@@ -756,33 +757,6 @@ export default function Navbar() {
                         </div>
                       </div>
                     </div>
-
-                    {cfg && (
-                      <DropItem
-                        to={cfg.dashTo}
-                        icon={<FaTachometerAlt />}
-                        label={cfg.dashLabel}
-                        onClick={() => setDropOpen(false)}
-                      />
-                    )}
-                    <DropItem
-                      to="/"
-                      icon={<FaHome />}
-                      label="Home"
-                      onClick={() => setDropOpen(false)}
-                    />
-                    <DropItem
-                      to="/explore"
-                      icon={<FaCar />}
-                      label="Explore Vehicles"
-                      onClick={() => setDropOpen(false)}
-                    />
-                    <DropItem
-                      to="/drivers"
-                      icon={<FaUserTie />}
-                      label="Explore Drivers"
-                      onClick={() => setDropOpen(false)}
-                    />
 
                     <div style={{ borderTop: "1px solid #f1f5f9" }}>
                       <button

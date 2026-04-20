@@ -4,7 +4,7 @@ export default function Footer() {
   return (
     <footer
       style={{
-        background: "#0f172a",
+        background: "#df6915",
         fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
       }}
     >
@@ -33,7 +33,7 @@ export default function Footer() {
               style={{
                 width: "36px",
                 height: "36px",
-                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                background: "rgba(255,255,255,0.2)",
                 borderRadius: "10px",
                 display: "flex",
                 alignItems: "center",
@@ -57,7 +57,7 @@ export default function Footer() {
           <p
             style={{
               fontSize: "14px",
-              color: "#94a3b8",
+              color: "rgba(255, 255, 255, 0.9)",
               lineHeight: "1.7",
               maxWidth: "280px",
               margin: 0,
@@ -74,8 +74,8 @@ export default function Footer() {
               alignItems: "center",
               gap: "6px",
               marginTop: "20px",
-              background: "rgba(99,102,241,0.15)",
-              border: "1px solid rgba(99,102,241,0.3)",
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.3)",
               borderRadius: "20px",
               padding: "5px 12px",
             }}
@@ -84,11 +84,13 @@ export default function Footer() {
               style={{
                 width: "6px",
                 height: "6px",
-                background: "#6366f1",
+                background: "#ffffff",
                 borderRadius: "50%",
               }}
             />
-            <span style={{ fontSize: "12px", color: "#a5b4fc", fontWeight: "500" }}>
+            <span
+              style={{ fontSize: "12px", color: "#ffffff", fontWeight: "500" }}
+            >
               Available 24/7
             </span>
           </div>
@@ -108,23 +110,35 @@ export default function Footer() {
           >
             Services
           </h4>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
-            {["Car Rentals", "Driver Rentals", "Airport Pickup", "Corporate Travel"].map(
-              (item) => (
-                <li key={item}>
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      color: "#94a3b8",
-                      transition: "color 0.15s",
-                      cursor: "default",
-                    }}
-                  >
-                    {item}
-                  </span>
-                </li>
-              )
-            )}
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            {[
+              "Car Rentals",
+              "Driver Rentals",
+              "Airport Pickup",
+              "Corporate Travel",
+            ].map((item) => (
+              <li key={item}>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    color: "rgba(255, 255, 255, 0.9)",
+                    transition: "color 0.15s",
+                    cursor: "default",
+                  }}
+                >
+                  {item}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -142,7 +156,9 @@ export default function Footer() {
           >
             Contact
           </h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+          >
             {[
               { label: "📍", value: "Kathmandu, Nepal" },
               { label: "✉️", value: "support@voyagego.com" },
@@ -150,10 +166,19 @@ export default function Footer() {
             ].map((item) => (
               <div
                 key={item.value}
-                style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                }}
               >
                 <span style={{ fontSize: "13px" }}>{item.label}</span>
-                <span style={{ fontSize: "14px", color: "#94a3b8" }}>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    color: "rgba(255, 255, 255, 0.9)",
+                  }}
+                >
                   {item.value}
                 </span>
               </div>
@@ -177,7 +202,7 @@ export default function Footer() {
         <p
           style={{
             fontSize: "13px",
-            color: "#475569",
+            color: "rgba(255, 255, 255, 0.8)",
             margin: 0,
           }}
         >
@@ -189,12 +214,14 @@ export default function Footer() {
               key={item}
               style={{
                 fontSize: "13px",
-                color: "#475569",
+                color: "rgba(255, 255, 255, 0.8)",
                 cursor: "pointer",
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#94a3b8")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#475569")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#ffffff")}
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)")
+              }
             >
               {item}
             </span>

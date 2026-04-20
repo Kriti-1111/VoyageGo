@@ -369,7 +369,8 @@ export default function Driver() {
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return showToast("File too large (max 5MB)", "error");
+    if (file.size > 5 * 1024 * 1024)
+      return showToast("File too large (max 5MB)", "error");
 
     const reader = new FileReader();
     reader.onload = async () => {
@@ -378,7 +379,7 @@ export default function Driver() {
         const { data } = await axios.patch(
           `${API}/api/drivers/profile`,
           { profilePhoto: base64 },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         setUserProfile(data.driver);
         showToast("Profile photo updated");
@@ -439,7 +440,7 @@ export default function Driver() {
       {/* Header */}
       <div
         style={{
-          background: "linear-gradient(135deg,#0f172a,#1e293b)",
+          background: "#1C1917",
           padding: "32px",
           position: "relative",
           overflow: "hidden",
@@ -469,8 +470,16 @@ export default function Driver() {
           }}
         >
           <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-            <label style={{ cursor: "pointer", position: "relative" }} title="Upload profile photo">
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
+            <label
+              style={{ cursor: "pointer", position: "relative" }}
+              title="Upload profile photo"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                style={{ display: "none" }}
+              />
               <div
                 style={{
                   width: "60px",
@@ -484,22 +493,40 @@ export default function Driver() {
                   fontSize: "24px",
                   fontWeight: "700",
                   overflow: "hidden",
-                  border: "2px solid rgba(255,255,255,0.2)"
+                  border: "2px solid rgba(255,255,255,0.2)",
                 }}
               >
                 {userProfile?.profilePhoto ? (
-                  <img src={userProfile.profilePhoto} alt="Profile" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img
+                    src={userProfile.profilePhoto}
+                    alt="Profile"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
                 ) : (
                   (userProfile?.name || "D")[0].toUpperCase()
                 )}
               </div>
-              <div style={{ 
-                position: "absolute", bottom: -4, right: -4, 
-                background: "#f8fafc", color: "#0f172a", 
-                borderRadius: "50%", width: 22, height: 22, 
-                display: "flex", alignItems: "center", justifyContent: "center", 
-                fontSize: 12, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" 
-              }}>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: -4,
+                  right: -4,
+                  background: "#f8fafc",
+                  color: "#0f172a",
+                  borderRadius: "50%",
+                  width: 22,
+                  height: 22,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
                 📷
               </div>
             </label>
@@ -525,7 +552,9 @@ export default function Driver() {
                   letterSpacing: "-0.3px",
                 }}
               >
-                {userProfile?.name ? `Hello, ${userProfile.name.split(" ")[0]}` : "My Dashboard"}
+                {userProfile?.name
+                  ? `Hello, ${userProfile.name.split(" ")[0]}`
+                  : "My Dashboard"}
               </h1>
             </div>
           </div>
@@ -644,9 +673,9 @@ export default function Driver() {
 
         {/* Verification Banner */}
         {userProfile && (
-          <DocumentVerificationBanner 
-            user={userProfile} 
-            onUploadSuccess={fetchAvailability} 
+          <DocumentVerificationBanner
+            user={userProfile}
+            onUploadSuccess={fetchAvailability}
           />
         )}
 

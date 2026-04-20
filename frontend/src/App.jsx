@@ -21,6 +21,7 @@ import FinePay from "./pages/FinePay";
 import EsewaReturn from "./pages/EsewaReturn";
 import ErrorPage from "./pages/ErrorPage";
 import Layout from "./components/Layout";
+import AboutUs from "./pages/AboutUs";
 
 function getUser() {
   try {
@@ -89,8 +90,15 @@ export default function App() {
             </Layout>
           }
         />
-
-        {/* ── Booking flow ── */}
+        <Route
+          path="/about"
+          element={
+            <Layout>
+              <AboutUs />
+            </Layout>
+          }
+        />
+        ;{/* ── Booking flow ── */}
         <Route
           path="/booking/:carId"
           element={
@@ -103,7 +111,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         {/* ── Payment gateway returns — must be BEFORE /payment/:bookingId ── */}
         {/* eSewa handles both booking and fine payments (?type=fine for fine) */}
         <Route path="/payment/esewa/return" element={<EsewaReturn />} />
@@ -119,7 +126,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         {/* ── Trip lifecycle — customer only ── */}
         <Route
           path="/booking/:bookingId/condition-report"
@@ -151,7 +157,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         {/* ── Auth ── */}
         <Route
           path="/login"
@@ -169,7 +174,6 @@ export default function App() {
             </GuestRoute>
           }
         />
-
         {/* ── Dashboards ── */}
         <Route
           path="/management/*"
@@ -201,7 +205,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route path="*" element={<ErrorPage />} />
       </Routes>
     </Router>
