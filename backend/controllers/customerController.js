@@ -1,6 +1,5 @@
 import User from "../models/User.js";
 
-// GET /api/customers — Admin/Owner only
 // Returns all users with role CUSTOMER
 export const getAllCustomers = async (req, res) => {
   try {
@@ -15,7 +14,6 @@ export const getAllCustomers = async (req, res) => {
   }
 };
 
-// GET /api/customers/:id — Admin/Owner only
 export const getCustomerById = async (req, res) => {
   try {
     const customer = await User.findOne({
@@ -33,7 +31,7 @@ export const getCustomerById = async (req, res) => {
   }
 };
 
-// DELETE /api/customers/:id — Admin/Owner only
+// DELETE
 export const deleteCustomer = async (req, res) => {
   try {
     const customer = await User.findOneAndDelete({

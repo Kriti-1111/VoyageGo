@@ -32,7 +32,6 @@ const vehicleSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
 
     // Drivers assigned to this vehicle (for auto-assignment)
-    // Add drivers here via admin panel. System picks first available.
     drivers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true },

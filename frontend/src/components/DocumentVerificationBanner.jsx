@@ -55,8 +55,8 @@ export default function DocumentVerificationBanner({ user, onUploadSuccess }) {
           license: licenseB64,
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
 
       // Successfully uploaded
@@ -87,13 +87,29 @@ export default function DocumentVerificationBanner({ user, onUploadSuccess }) {
         }}
       >
         <div>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: status === "Rejected" ? "#b91c1c" : "#b45309" }}>
-            {status === "NotSubmitted" && "Please verify your identity to unlock full booking access"}
-            {status === "PendingReview" && "Your documents are under review. We'll notify you shortly."}
-            {status === "Rejected" && `Your documents were rejected: ${user?.documents?.rejectionReason || "Blurry image"}`}
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              fontWeight: 700,
+              color: status === "Rejected" ? "#b91c1c" : "#b45309",
+            }}
+          >
+            {status === "NotSubmitted" &&
+              "Please verify your identity to unlock full booking access"}
+            {status === "PendingReview" &&
+              "Your documents are under review. We'll notify you shortly."}
+            {status === "Rejected" &&
+              `Your documents were rejected: ${user?.documents?.rejectionReason || "Blurry image"}`}
           </p>
           {(status === "NotSubmitted" || status === "Rejected") && (
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: status === "Rejected" ? "#ef4444" : "#d97706" }}>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                color: status === "Rejected" ? "#ef4444" : "#d97706",
+              }}
+            >
               Quick verification process to ensure a smooth booking experience.
             </p>
           )}
@@ -145,51 +161,85 @@ export default function DocumentVerificationBanner({ user, onUploadSuccess }) {
               boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
             }}
           >
-            <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#0f172a" }}>Upload Documents</h2>
-            
+            <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#0f172a" }}>
+              Upload Documents
+            </h2>
+
             <form onSubmit={handleUpload}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#475569",
+                    marginBottom: 6,
+                  }}
+                >
                   Citizenship Front*
                 </label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => setCitizenshipFront(e.target.files[0])} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setCitizenshipFront(e.target.files[0])}
                   required
                   style={{ fontSize: 13, color: "#64748b" }}
                 />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#475569",
+                    marginBottom: 6,
+                  }}
+                >
                   Citizenship Back*
                 </label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => setCitizenshipBack(e.target.files[0])} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setCitizenshipBack(e.target.files[0])}
                   required
                   style={{ fontSize: 13, color: "#64748b" }}
                 />
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
-                  {user?.role === "DRIVER" ? "Driver's License*" : "License (Optional unless Self-Drive)"}
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#475569",
+                    marginBottom: 6,
+                  }}
+                >
+                  {user?.role === "DRIVER"
+                    ? "Driver's License*"
+                    : "License (Optional unless Self-Drive)"}
                 </label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => setLicense(e.target.files[0])} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setLicense(e.target.files[0])}
                   required={user?.role === "DRIVER"}
                   style={{ fontSize: 13, color: "#64748b" }}
                 />
               </div>
 
               {error && (
-                <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 16 }}>{error}</div>
+                <div
+                  style={{ color: "#ef4444", fontSize: 13, marginBottom: 16 }}
+                >
+                  {error}
+                </div>
               )}
 
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <div
+                style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -201,7 +251,7 @@ export default function DocumentVerificationBanner({ user, onUploadSuccess }) {
                     color: "#475569",
                     border: "none",
                     fontWeight: 600,
-                    cursor: "pointer"
+                    cursor: "pointer",
                   }}
                 >
                   Cancel
@@ -216,7 +266,7 @@ export default function DocumentVerificationBanner({ user, onUploadSuccess }) {
                     color: "#fff",
                     border: "none",
                     fontWeight: 600,
-                    cursor: submitting ? "not-allowed" : "pointer"
+                    cursor: submitting ? "not-allowed" : "pointer",
                   }}
                 >
                   {submitting ? "Uploading..." : "Submit for Verification"}

@@ -384,6 +384,7 @@ export default function Driver() {
         setUserProfile(data.driver);
         showToast("Profile photo updated");
       } catch (err) {
+        console.error(err);
         showToast("Failed to upload photo", "error");
       }
     };

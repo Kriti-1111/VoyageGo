@@ -19,7 +19,7 @@ import {
 
 const router = express.Router();
 
-// ── Customer ──────────────────────────────────────────────────────────────────
+//Customer
 router.post("/", auth, createBooking);
 router.get("/my", auth, getMyBookings);
 router.patch("/:id/cancel", auth, cancelBooking);
@@ -27,7 +27,7 @@ router.post("/:id/payment", auth, processPayment);
 router.post("/:id/pre-trip", auth, submitPreTrip);
 router.post("/:id/return", auth, returnVehicle);
 
-// ── Demo pay — FYP fallback (simulates payment verification result) ────────────
+//Demo pay
 router.post("/:id/demo-pay", auth, async (req, res) => {
   console.log("demoPay hit — bookingId:", req.params.id);
   console.log("demoPay user:", req.user?._id);
@@ -46,8 +46,8 @@ router.post("/:id/demo-pay", auth, async (req, res) => {
     booking.paymentMethod = "Demo";
     booking.paymentStatus = "Paid";
     booking.paidAt = new Date();
-    
-    // ✅ Guard against paymentDetails being undefined
+
+    // Guard against paymentDetails being undefined
     if (!booking.paymentDetails) booking.paymentDetails = {};
     booking.paymentDetails.reference = "DEMO-" + Date.now();
 
@@ -71,17 +71,17 @@ router.post("/:id/demo-pay", auth, async (req, res) => {
   }
 });
 
-// ── Driver ────────────────────────────────────────────────────────────────────
+//Driver
 router.get("/driver/mine", auth, driver, getDriverBookings);
 router.patch("/:id/driver-response", auth, driver, driverResponse);
 
-// ── Admin / Owner ─────────────────────────────────────────────────────────────
+//Admin / Owner
 router.post("/walkin", auth, admin, createWalkInBooking);
 router.get("/", auth, admin, getAllBookings);
 router.patch("/:id/cash-payment", auth, admin, adminCashPayment);
 router.patch("/:id/admin-cancel", auth, admin, adminCancelBooking);
 
-// ── Admin: hard delete booking ────────────────────────────────────────────────
+//Admin: delete booking
 router.delete("/:id", auth, admin, async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);
@@ -94,7 +94,6 @@ router.delete("/:id", auth, admin, async (req, res) => {
   }
 });
 
-// ── Shared ────────────────────────────────────────────────────────────────────
 router.get("/:id", auth, getBookingById);
 
 export default router;

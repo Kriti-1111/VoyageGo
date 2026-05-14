@@ -799,7 +799,7 @@ export default function ConditionReport() {
           </div>
         </div>
 
-        {/* Fixed bottom bar */}
+        {/* bottom bar */}
         <div
           style={{
             position: "fixed",

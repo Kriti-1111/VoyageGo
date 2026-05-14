@@ -24,10 +24,6 @@ function fmtDate(d) {
   });
 }
 
-// Mirrors backend fine logic — includes vehicle + driver fine
-// Grace: ≤30 min → no fine
-// 1–6 late hours: lateHours × hourly rates
-// >6 late hours: one full daily rate each (vehicleDailyRate stored on booking, driverDailyRate = driverRate × 8)
 function calcFine(
   pricePerHour,
   driverRatePerHour = 0,
@@ -175,7 +171,6 @@ export default function ReturnVehicle() {
         setBookingErr(err.response?.data?.message || "Failed to load booking."),
       )
       .finally(() => setLoadingB(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
   async function handleReturn() {
@@ -187,10 +182,10 @@ export default function ReturnVehicle() {
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       if (data.fine && data.fine > 0) {
-        // Fine incurred — redirect to fine payment page
+        // Fine incurred,redirect to fine payment page
         navigate(`/payment/fine/${data.booking?._id || bookingId}`);
       } else {
-        // No fine — show success screen
+        // No fine,show success screen
         setResult(data);
       }
     } catch (err) {
@@ -453,7 +448,7 @@ export default function ReturnVehicle() {
     );
   }
 
-  // Live fine preview — includes vehicle + driver portions
+  // Live fine preview,includes vehicle + driver portions
   const vRate = booking.vehicle?.pricePerHour || 0;
   const dRate = booking.driver?.driverRatePerHour || 0;
   const finePreview = calcFine(
@@ -583,7 +578,7 @@ export default function ReturnVehicle() {
             </div>
           </div>
 
-          {/* Fine breakdown — shows vehicle + driver split */}
+          {/* Fine breakdown,shows vehicle + driver split */}
           {finePreview.fine > 0 && (
             <div
               style={{
@@ -727,7 +722,7 @@ export default function ReturnVehicle() {
             </p>
           </div>
 
-          {/* Condition report — optional but encouraged before returning */}
+          {/* Condition report */}
           <div
             style={{
               background: "#FFF7ED",
@@ -775,7 +770,7 @@ export default function ReturnVehicle() {
                     cursor: "pointer",
                   }}
                 >
-                  📷 Report condition (optional)
+                  Report condition (optional)
                 </button>
               </div>
             </div>

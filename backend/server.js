@@ -17,7 +17,6 @@ dotenv.config();
 
 const app = express();
 
-// ── 1. CORS first — before everything ────────────────────────────────────────
 app.use(
   cors({
     origin: ["http://localhost:5173", "http://localhost:3000"],
@@ -28,11 +27,9 @@ app.use(
 );
 app.options("/{*splat}", cors());
 
-// ── 2. Body parsing — before routes ──────────────────────────────────────────
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// ── 3. Routes — after middleware ──────────────────────────────────────────────
 app.use("/api/auth", authRoutes); // /auth/register, /auth/login
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/vehicles", vehicleRoutes);
@@ -42,7 +39,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/pay", paymentRoutes);
 app.use("/api/condition-reports", conditionReportRoutes);
 app.use("/api/users", userRoutes);
-// ── 4. Health / test routes ───────────────────────────────────────────────────
+
 app.get("/", (req, res) => {
   res.json({
     message: "VoyageGo Backend is running",
@@ -60,7 +57,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// ── 5. Database ───────────────────────────────────────────────────────────────
+//Database
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(

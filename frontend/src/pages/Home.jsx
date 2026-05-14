@@ -270,7 +270,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Featured Vehicles ── */}
+      {/*  Featured Vehicles */}
       <div
         className="home-section-padding"
         style={{ padding: "72px 40px 0", maxWidth: 1280, margin: "0 auto" }}
@@ -439,7 +439,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Most Popular ── */}
+      {/*  Most Popular */}
       <div
         className="home-section-padding"
         style={{ padding: "48px 40px 72px", maxWidth: 1280, margin: "0 auto" }}
@@ -608,7 +608,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Professional Drivers ── */}
+      {/*  Professional Drivers  */}
       <div style={{ background: "#f8fafc" }}>
         <div
           className="home-section-padding"
@@ -732,7 +732,7 @@ export default function Home() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      ✓ VERIFIED
+                      VERIFIED
                     </span>
                   </div>
 
@@ -782,7 +782,7 @@ export default function Home() {
                             flexShrink: 0,
                           }}
                         >
-                          ★ {avg}
+                          {avg}
                         </span>
                       )}
                     </div>
@@ -1124,7 +1124,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA — guests only */}
+      {/*  guests only */}
       {!user && (
         <section
           style={{

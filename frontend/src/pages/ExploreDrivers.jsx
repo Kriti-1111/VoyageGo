@@ -14,7 +14,7 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
-// ── Driver card ───────────────────────────────────────────────────────────────
+//  Driver card
 function DriverCard({ driver, onBook, isLoggedIn }) {
   const [hovered, setHovered] = useState(false);
 
@@ -42,7 +42,13 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
         <img
           src={driver.profilePhoto}
           alt={driver.name}
-          style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            objectFit: "cover",
+            flexShrink: 0,
+          }}
         />
       ) : (
         <div
@@ -79,13 +85,25 @@ function DriverCard({ driver, onBook, isLoggedIn }) {
           </span>
           {driver.ratingCount > 0 ? (
             <span style={{ fontSize: 12, color: "#f59e0b", fontWeight: 700 }}>
-              ⭐ {(driver.totalRating / driver.ratingCount).toFixed(1)} · {driver.totalRides || 0} rides
+              ⭐ {(driver.totalRating / driver.ratingCount).toFixed(1)} ·{" "}
+              {driver.totalRides || 0} rides
             </span>
           ) : (
-            <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>New driver</span>
+            <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>
+              New driver
+            </span>
           )}
           {driver.district && (
-            <span style={{ fontSize: 11, color: "#475569", background: "#f1f5f9", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: "#475569",
+                background: "#f1f5f9",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontWeight: 600,
+              }}
+            >
               📍 {driver.district}
             </span>
           )}
@@ -253,7 +271,7 @@ function SkeletonCard() {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+//  Main page
 export default function ExploreDrivers() {
   const navigate = useNavigate();
   const user = getUser();
@@ -266,13 +284,12 @@ export default function ExploreDrivers() {
   const [filterAvail, setFilterAvail] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState("");
 
-  // Fetch is public — no token needed. Guests can browse, logged-in users can book.
+  // Fetch is public
   useEffect(() => {
     const controller = new AbortController();
 
     const fetchDrivers = async () => {
       try {
-        // Include auth header if logged in (backend may return extra fields for authed users)
         const headers = {};
         const token = getToken();
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -293,11 +310,10 @@ export default function ExploreDrivers() {
 
     fetchDrivers();
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleBook(driver) {
-    // Takes user to Explore — they pick a vehicle and BookingPage handles driver pre-selection
+    // Takes user to Explore, they pick a vehicle and BookingPage handles driver pre selection
     navigate("/explore", { state: { preselectedDriver: driver } });
   }
 
@@ -313,7 +329,8 @@ export default function ExploreDrivers() {
           s.toLowerCase().includes(q),
         );
       const matchAvail = !filterAvail || d.isAvailable;
-      const matchDistrict = !selectedDistrict || d.district === selectedDistrict;
+      const matchDistrict =
+        !selectedDistrict || d.district === selectedDistrict;
       return matchSearch && matchAvail && matchDistrict;
     })
     .sort((a, b) => {

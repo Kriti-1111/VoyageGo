@@ -24,7 +24,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Vehicle Detail — accessible by logged-in customers */}
+        {/* Vehicle Detail,accessible by logged-in customers */}
         <Route path="/vehicle/:carId" element={<CarDetails />} />
 
         {/* Role-Based Routes */}
@@ -44,9 +44,11 @@ function AppRoutes() {
         <Route
           path="/"
           element={
-            userinfo.role
-              ? <Navigate to={`/${userinfo.role.toLowerCase()}`} />
-              : <Login />
+            userinfo.role ? (
+              <Navigate to={`/${userinfo.role.toLowerCase()}`} />
+            ) : (
+              <Login />
+            )
           }
         />
         <Route path="*" element={<ErrorPage />} />

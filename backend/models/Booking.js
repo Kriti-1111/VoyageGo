@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 export const BOOKING_STATUS = {
   PENDING_PAYMENT: "PendingPayment", // Self-drive: waiting for customer to pay
   PENDING_DRIVER: "PendingDriver", // With-driver: waiting for driver to accept
-  CONFIRMED: "Confirmed", // Driver accepted (with-driver) — waiting for payment
+  CONFIRMED: "Confirmed", // Driver accepted (with driver), waiting for payment
   ACTIVE: "Active", // Trip in progress
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
@@ -32,7 +32,6 @@ const bookingSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Self-drive vs with-driver split
     requiresDriver: { type: Boolean, default: true },
 
     // Pickup: customer collects vehicle, or vehicle delivered to them
@@ -100,7 +99,11 @@ const bookingSchema = new mongoose.Schema(
     // Condition report
     conditionReportReviewed: { type: Boolean, default: false },
     damageFlagged: { type: Boolean, default: false },
-    damageFlaggedBy: { type: String, enum: ["customer", "staff", "both"], default: null },
+    damageFlaggedBy: {
+      type: String,
+      enum: ["customer", "staff", "both"],
+      default: null,
+    },
     damageNote: { type: String, default: "" },
 
     // Fine breakdown

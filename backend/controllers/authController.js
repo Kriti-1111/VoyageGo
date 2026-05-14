@@ -2,10 +2,9 @@ import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-// Roles that the public registration form is allowed to create
 const PUBLIC_ROLES = ["CUSTOMER", "DRIVER"];
 
-// ── REGISTER ──────────────────────────────────────────────────────────────────
+//REGISTER
 export const register = async (req, res) => {
   try {
     const {
@@ -74,7 +73,7 @@ export const register = async (req, res) => {
   }
 };
 
-// ── LOGIN ─────────────────────────────────────────────────────────────────────
+//LOGIN
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -118,7 +117,7 @@ export const login = async (req, res) => {
   }
 };
 
-// ── GET CURRENT USER ──────────────────────────────────────────────────────────
+//GET current user
 export const me = async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader)
@@ -136,7 +135,7 @@ export const me = async (req, res) => {
   }
 };
 
-// ── GET ALL CUSTOMERS (Admin / Owner) ─────────────────────────────────────────
+//GET All Customers
 export const getAllCustomers = async (req, res) => {
   try {
     const customers = await User.find({ role: "CUSTOMER" })

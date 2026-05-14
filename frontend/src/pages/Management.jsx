@@ -111,7 +111,7 @@ const STATUS_LABEL = {
   Cancelled: "Cancelled",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers
 function PanelHeader({ title, subtitle, action }) {
   return (
     <div
@@ -281,7 +281,7 @@ function StatCard({ title, value, subtitle, icon, accent }) {
   );
 }
 
-// ─── BookingsTable ─────────────────────────────────────────────────────────────
+//  BookingsTable
 function BookingsTable({
   bookings,
   onCashPayment,
@@ -654,7 +654,7 @@ function BookingsTable({
   );
 }
 
-// ─── Overview Panel ───────────────────────────────────────────────────────────
+//  Overview Panel
 function OverviewPanel({
   role,
   bookings,
@@ -797,7 +797,7 @@ function OverviewPanel({
   );
 }
 
-// ─── Assign Drivers Modal ─────────────────────────────────────────────────────
+//  Assign Drivers Modal
 function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
   const [allDrivers, setAllDrivers] = useState([]);
   const [selectedIds, setSelectedIds] = useState(
@@ -1079,7 +1079,7 @@ function AssignDriversModal({ vehicle, onClose, onSaved, token }) {
   );
 }
 
-// ─── Image Picker ─────────────────────────────────────────────────────────────
+// Image Picker
 function ImagePicker({ value, onChange }) {
   const inputRef = useRef(null);
 
@@ -1200,7 +1200,7 @@ function ImagePicker({ value, onChange }) {
   );
 }
 
-// ─── Update Image Modal ───────────────────────────────────────────────────────
+// Update Image Modal
 function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
   const existingImg = vehicle.imageUrl
     ? vehicle.imageUrl.startsWith("data:")
@@ -1456,7 +1456,7 @@ function UpdateImageModal({ vehicle, token, onClose, onSaved }) {
   );
 }
 
-// ─── Edit Vehicle Modal ───────────────────────────────────────────────────────
+//  Edit Vehicle Modal
 function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: vehicle.name || "",
@@ -1722,7 +1722,7 @@ function EditVehicleModal({ vehicle, token, onClose, onSaved }) {
   );
 }
 
-// ─── Vehicles Panel ───────────────────────────────────────────────────────────
+// Vehicles Panel
 function VehiclesPanel({ isAdmin }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2228,7 +2228,7 @@ function VehiclesPanel({ isAdmin }) {
                         padding: "6px 10px",
                       }}
                     >
-                      No drivers — bookings skip driver step
+                      No drivers , bookings skip driver step
                     </p>
                   ) : (
                     <div
@@ -2495,7 +2495,7 @@ function VehiclesPanel({ isAdmin }) {
   );
 }
 
-// ─── Drivers Panel ─────────────────────────────────────────────────────────────
+//  Drivers Panel
 function DriversPanel({ isAdmin }) {
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3147,7 +3147,7 @@ function DriversPanel({ isAdmin }) {
   );
 }
 
-// ─── Fines Panel ──────────────────────────────────────────────────────────────
+// Fines Panel
 function FinesPanel() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3602,7 +3602,7 @@ function FinesPanel() {
   );
 }
 
-// ─── Customers Panel ──────────────────────────────────────────────────────────
+//  Customers Panel
 function CustomersPanel() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3884,7 +3884,7 @@ function GenericPanel({ title, subtitle, icon, hint }) {
   );
 }
 
-// ─── Photo Lightbox ───────────────────────────────────────────────────────────
+//  Photo Lightbox
 function PhotoLightbox({ photos, startIndex, label, onClose }) {
   const [idx, setIdx] = useState(startIndex || 0);
   const total = photos.length;
@@ -4051,7 +4051,7 @@ function PhotoLightbox({ photos, startIndex, label, onClose }) {
   );
 }
 
-// ─── Report Type Badge ────────────────────────────────────────────────────────
+//  Report Type Badge
 function ReportTypeBadge({ hasPreTrip, hasPostTrip }) {
   if (hasPreTrip && hasPostTrip)
     return (
@@ -4104,7 +4104,7 @@ function ReportTypeBadge({ hasPreTrip, hasPostTrip }) {
   return null;
 }
 
-// ─── Photo Strip ──────────────────────────────────────────────────────────────
+//  Photo Strip
 function PhotoStrip({ photos, label, onOpen }) {
   const SLOTS = ["Front", "Back", "Left", "Right"];
   if (!photos || photos.length === 0) {
@@ -4212,7 +4212,7 @@ function PhotoStrip({ photos, label, onOpen }) {
   );
 }
 
-// ─── Condition Reports Panel ──────────────────────────────────────────────────
+//  Condition Reports Panel
 function ConditionReportsPanel({ reports, fetchReports }) {
   const [filter, setFilter] = useState("all");
   const [toggling, setToggling] = useState(null);
@@ -4842,7 +4842,7 @@ function ConditionReportsPanel({ reports, fetchReports }) {
   );
 }
 
-// ─── Documents Panel ──────────────────────────────────────────────────────────
+// Documents Panel
 function DocumentsPanel() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5067,7 +5067,7 @@ function DocumentsPanel() {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// Main
 export default function Management() {
   const user = (() => {
     try {

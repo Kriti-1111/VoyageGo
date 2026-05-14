@@ -3,7 +3,7 @@ import crypto from "crypto";
 import Booking, { BOOKING_STATUS, PAYMENT_STATUS } from "../models/Booking.js";
 import Notification, { NOTIF_TYPES } from "../models/Notification.js";
 
-// ── eSewa v2 ──────────────────────────────────────────────────────────────────
+//eSewa v2
 const ESEWA_PRODUCT_CODE = process.env.ESEWA_SCD || "EPAYTEST";
 const ESEWA_SECRET = process.env.ESEWA_SECRET || "8gBm/:&EnhH.1/q";
 const ESEWA_FORM_URL =
@@ -12,11 +12,10 @@ const ESEWA_FORM_URL =
 const ESEWA_STATUS_URL =
   "https://rc-epay.esewa.com.np/api/epay/transaction/status/";
 
-
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 
-// ── eSewa HMAC signature ──────────────────────────────────────────────────────
+//eSewa HMAC signature
 function esewaSignature(totalAmount, transactionUuid) {
   const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${ESEWA_PRODUCT_CODE}`;
   return crypto
@@ -25,7 +24,7 @@ function esewaSignature(totalAmount, transactionUuid) {
     .digest("base64");
 }
 
-// ── Mark booking payment paid ─────────────────────────────────────────────────
+//Mark booking payment paid
 async function markBookingPaid(bookingId, method, gatewayRef) {
   const booking = await Booking.findById(bookingId).populate("vehicle", "name");
   if (!booking) return null;
@@ -62,7 +61,7 @@ async function markBookingPaid(bookingId, method, gatewayRef) {
   return booking;
 }
 
-// ── Mark fine paid ────────────────────────────────────────────────────────────
+//Mark fine paid
 async function markFinePaid(bookingId, method, gatewayRef) {
   const booking = await Booking.findById(bookingId).populate("vehicle", "name");
   if (!booking) return null;
@@ -87,11 +86,7 @@ async function markFinePaid(bookingId, method, gatewayRef) {
   return booking;
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// eSEWA — BOOKING PAYMENT
-// ═════════════════════════════════════════════════════════════════════════════
-
-// POST /api/pay/esewa/initiate
+// eSEWA, BOOKING PAYMENT
 export const esewaInitiate = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -129,7 +124,6 @@ export const esewaInitiate = async (req, res) => {
   }
 };
 
-// POST /api/pay/esewa/admin-initiate
 export const esewaAdminInitiate = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -167,7 +161,7 @@ export const esewaAdminInitiate = async (req, res) => {
   }
 };
 
-// GET /api/pay/esewa/success  (eSewa redirects browser here)
+//eSewa redirects browser here
 export const esewaSuccess = async (req, res) => {
   try {
     const { data } = req.query;
@@ -189,8 +183,7 @@ export const esewaSuccess = async (req, res) => {
     if (transaction_uuid.startsWith("TXN-")) {
       bookingId = transaction_uuid.split("-")[1]; // old format
     } else {
-      // new format: TXN{24charMongoId}{timestamp}
-      bookingId = transaction_uuid.slice(3, 27); // "TXN" = 3 chars, MongoDB ID = 24 chars
+      bookingId = transaction_uuid.slice(3, 27);
     }
     const booking = await markBookingPaid(bookingId, "eSewa", transaction_code);
     if (!booking)
@@ -205,11 +198,7 @@ export const esewaSuccess = async (req, res) => {
   }
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// eSEWA — FINE PAYMENT
-// ═════════════════════════════════════════════════════════════════════════════
-
-// POST /api/pay/esewa/fine/initiate
+// eSEWA, FINE PAYMENT
 export const esewaFineInitiate = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -243,7 +232,6 @@ export const esewaFineInitiate = async (req, res) => {
   }
 };
 
-// GET /api/pay/esewa/fine/success
 export const esewaFineSuccess = async (req, res) => {
   try {
     const { data } = req.query;
@@ -265,8 +253,7 @@ export const esewaFineSuccess = async (req, res) => {
     if (transaction_uuid.startsWith("FINE-")) {
       bookingId = transaction_uuid.split("-")[1]; // old format
     } else {
-      // new format: FINE{24charMongoId}{timestamp}
-      bookingId = transaction_uuid.slice(4, 28); // "FINE" = 4 chars, MongoDB ID = 24 chars
+      bookingId = transaction_uuid.slice(4, 28);
     }
     const booking = await markFinePaid(bookingId, "eSewa", transaction_code);
     if (!booking)
@@ -281,10 +268,7 @@ export const esewaFineSuccess = async (req, res) => {
   }
 };
 
-
-// ═════════════════════════════════════════════════════════════════════════════
-// DEMO PAY — booking (FYP fallback)
-// ═════════════════════════════════════════════════════════════════════════════
+// DEMO PAY
 export const demoPay = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -310,9 +294,8 @@ export const demoPay = async (req, res) => {
   }
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// WALK-IN CASH PAY
-// ═════════════════════════════════════════════════════════════════════════════
+// WALK IN CASH PAY
+
 export const walkinCashPay = async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -329,8 +312,6 @@ export const walkinCashPay = async (req, res) => {
 
     await booking.save();
 
-    // Optionally alert the customer if needed, but not required for walkin
-
     const updated = await Booking.findById(booking._id)
       .populate("customer", "name email phone")
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
@@ -342,9 +323,7 @@ export const walkinCashPay = async (req, res) => {
   }
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// DEMO FINE PAY — fine (FYP fallback)
-// ═════════════════════════════════════════════════════════════════════════════
+// DEMO FINE PAY
 export const demoFinePay = async (req, res) => {
   try {
     const { bookingId } = req.body;

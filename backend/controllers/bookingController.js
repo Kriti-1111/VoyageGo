@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import Notification, { NOTIF_TYPES } from "../models/Notification.js";
 import bcrypt from "bcrypt";
 
-// ── Notification helper ───────────────────────────────────────────────────────
+//  Notification helper
 async function notify({ recipient, type, title, message, booking }) {
   try {
     await Notification.create({ recipient, type, title, message, booking });
@@ -13,37 +13,6 @@ async function notify({ recipient, type, title, message, booking }) {
   }
 }
 
-// ── Price calculation ─────────────────────────────────────────────────────────
-// Returns { vehicleCost, driverCost, total } or null if invalid duration.
-//
-// Vehicle pricing:
-//   Hourly (1–23h):  hours × pricePerHour                    (no discount)
-//   Daily  (1–6d):   days × pricePerHour × 24 × 0.80         (20% off)
-//   Weekly (7–30d):  days × pricePerHour × 24 × 0.70         (30% off)
-//
-// Driver pricing (only when driver assigned):
-//   Hourly:  hours × driverRatePerHour
-//   Daily:   days × (driverRatePerHour × 8)   (8 working hours assumed)
-//
-// ── Pricing engine ────────────────────────────────────────────────────────────
-//
-// mode: "hourly" | "daily"
-//
-// Hourly:
-//   totalHours = ceil(diffHours)
-//   vehicleCost = totalHours × pricePerHour
-//   driverCost  = totalHours × driverRatePerHour
-//
-// Daily:
-//   totalHours = ceil(diffHours)
-//   totalDays  = ceil(totalHours / 24)
-//   vehicleDailyRate = pricePerHour × 24 × (0.8 if days ≤6, else 0.7)
-//   driverDailyRate  = driverRatePerHour × 8
-//   vehicleCost = totalDays × vehicleDailyRate
-//   driverCost  = totalDays × driverDailyRate
-//
-// Returns all intermediate values so fine calculation can reuse daily rates.
-//
 export function calculatePrice(
   pricePerHour,
   startDate,
@@ -88,15 +57,12 @@ export function calculatePrice(
   };
 }
 
-// ── Fine calculation ──────────────────────────────────────────────────────────
-//
+// Fine calculation
 // Needs vehicleDailyRate and driverDailyRate from the original booking
-// (stored at creation time) so discount is applied consistently.
-//
-// Grace period: ≤ 30 min → no fine
+// Grace period: ≤ 30 min
 // 1–6 late hours: lateHours × hourly rate
 // > 6 late hours: one full daily rate (vehicle + driver)
-//
+
 export function calculateFine(
   pricePerHour,
   driverRatePerHour = 0,
@@ -135,13 +101,13 @@ export function calculateFine(
   };
 }
 
-// ── Auto-assign driver ────────────────────────────────────────────────────────
+//Auto assign driver
 async function findAvailableDriver(
   vehicleDrivers,
   startDate,
   endDate,
   excludeIds = [],
-  preferredDistrict = ""
+  preferredDistrict = "",
 ) {
   const drivers = await User.find({ _id: { $in: vehicleDrivers } });
   let available = [];
@@ -169,7 +135,7 @@ async function findAvailableDriver(
 
   if (preferredDistrict) {
     // Try same district first
-    let driver = available.find(d => d.district === preferredDistrict);
+    let driver = available.find((d) => d.district === preferredDistrict);
     if (driver) return driver._id;
   }
 
@@ -177,7 +143,7 @@ async function findAvailableDriver(
   return available[0]._id;
 }
 
-// ── Auto-activate ─────────────────────────────────────────────────────────────
+//Auto-activate
 async function tryAutoActivate(booking) {
   if (
     booking.status === BOOKING_STATUS.CONFIRMED &&
@@ -198,16 +164,11 @@ async function tryAutoActivate(booking) {
   return false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // CUSTOMER: Create booking
 // POST /api/bookings
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Create booking
-// POST /api/bookings
-//
 // requiresDriver = false → Self-drive → status: PendingPayment (no driver flow)
 // requiresDriver = true  → With driver → assign driver → status: PendingDriver
-// ─────────────────────────────────────────────────────────────────────────────
+
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -218,7 +179,7 @@ export const createBooking = async (req, res) => {
       driverId,
       mode = "hourly",
       requiresDriver = true, // NEW: false = self-drive
-      pickupType = "self", // NEW: "self" | "delivery"
+      pickupType = "self", // NEW: "self", "delivery"
       pickupLocation = "", // NEW: address if delivery
       pickupDistrict = "Kathmandu", // Admin dist
       customerId, // NEW: for walk-in bookings by admin
@@ -235,11 +196,9 @@ export const createBooking = async (req, res) => {
         .json({ message: "vehicleId, startDate, and endDate are required." });
     }
     if (pickupType === "delivery" && !pickupLocation.trim()) {
-      return res
-        .status(400)
-        .json({
-          message: "Delivery address is required for delivery bookings.",
-        });
+      return res.status(400).json({
+        message: "Delivery address is required for delivery bookings.",
+      });
     }
 
     const start = new Date(startDate);
@@ -282,7 +241,7 @@ export const createBooking = async (req, res) => {
     let driverRatePerHour = 0;
 
     if (requiresDriver) {
-      // ── With-driver flow ─────────────────────────────────────────────────────
+      // With driver flow
       const driverPool = (vehicle.drivers || []).map((d) => d._id || d);
 
       if (driverId) {
@@ -299,22 +258,24 @@ export const createBooking = async (req, res) => {
           endDate: { $gt: start },
         });
         if (driverConflict) {
-          return res
-            .status(409)
-            .json({
-              message: "The selected driver is not available for this time.",
-            });
+          return res.status(409).json({
+            message: "The selected driver is not available for this time.",
+          });
         }
         assignedDriver = driverId;
       } else if (driverPool.length > 0) {
-        assignedDriver = await findAvailableDriver(driverPool, start, end, [], pickupDistrict);
+        assignedDriver = await findAvailableDriver(
+          driverPool,
+          start,
+          end,
+          [],
+          pickupDistrict,
+        );
         if (!assignedDriver) {
-          return res
-            .status(400)
-            .json({
-              message:
-                "No drivers available for this time. Choose a different time or select a driver manually.",
-            });
+          return res.status(400).json({
+            message:
+              "No drivers available for this time. Choose a different time or select a driver manually.",
+          });
         }
       }
 
@@ -326,7 +287,7 @@ export const createBooking = async (req, res) => {
     }
     // Self-drive: assignedDriver stays null, driverRatePerHour stays 0
 
-    // Price calculation — driver rate is 0 for self-drive
+    // Price calculation, driver rate is 0 for self-drive
     const pricing = calculatePrice(
       vehicle.pricePerHour,
       start,
@@ -335,24 +296,22 @@ export const createBooking = async (req, res) => {
       mode,
     );
     if (!pricing) {
-      return res
-        .status(400)
-        .json({
-          message: "Invalid booking duration. Min 1 hour, max 30 days.",
-        });
+      return res.status(400).json({
+        message: "Invalid booking duration. Min 1 hour, max 30 days.",
+      });
     }
 
-    // ── Initial status ────────────────────────────────────────────────────────
-    // Self-drive      → PendingPayment (go straight to payment, no driver step)
-    // With driver assigned → PendingDriver (driver must accept first)
-    // With driver, none available on vehicle → PendingPayment (treat as self-drive)
+    //Initial status
+    // Self-drive = PendingPayment (go straight to payment, no driver step)
+    // With driver assigned = PendingDriver (driver must accept first)
+    // With driver, none available on vehicle → PendingPayment
     let initialStatus;
     if (!requiresDriver) {
       initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
     } else if (assignedDriver) {
       initialStatus = BOOKING_STATUS.PENDING_DRIVER;
     } else {
-      // requiresDriver=true but no drivers on vehicle — go straight to payment
+      // requiresDriver=true but no drivers on vehicle, go straight to payment
       initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
     }
 
@@ -392,10 +351,7 @@ export const createBooking = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Create Walk-in Booking
-// POST /api/bookings/walkin
-// ─────────────────────────────────────────────────────────────────────────────
+//Create Walk-in Booking
 export const createWalkInBooking = async (req, res) => {
   try {
     const {
@@ -416,28 +372,38 @@ export const createWalkInBooking = async (req, res) => {
     } = req.body;
 
     if (!name || !phone) {
-      return res.status(400).json({ message: "Name and phone are required for a walk-in customer." });
+      return res.status(400).json({
+        message: "Name and phone are required for a walk-in customer.",
+      });
     }
-    
+
     if (!["hourly", "daily"].includes(mode)) {
-      return res.status(400).json({ message: 'mode must be "hourly" or "daily".' });
+      return res
+        .status(400)
+        .json({ message: 'mode must be "hourly" or "daily".' });
     }
-    
+
     if (!vehicleId || !startDate || !endDate) {
-      return res.status(400).json({ message: "vehicleId, startDate, and endDate are required." });
+      return res
+        .status(400)
+        .json({ message: "vehicleId, startDate, and endDate are required." });
     }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
     if (end <= start)
-      return res.status(400).json({ message: "End date must be after start date." });
+      return res
+        .status(400)
+        .json({ message: "End date must be after start date." });
 
     const vehicle = await Vehicle.findById(vehicleId).populate("drivers");
     if (!vehicle)
       return res.status(404).json({ message: "Vehicle not found." });
     if (!vehicle.isActive)
-      return res.status(400).json({ message: "This vehicle is not available." });
+      return res
+        .status(400)
+        .json({ message: "This vehicle is not available." });
 
     // Vehicle conflict check
     const vehicleConflict = await Booking.findOne({
@@ -454,7 +420,9 @@ export const createWalkInBooking = async (req, res) => {
       endDate: { $gt: start },
     });
     if (vehicleConflict) {
-      return res.status(409).json({ message: "Vehicle is already booked for this time period." });
+      return res
+        .status(409)
+        .json({ message: "Vehicle is already booked for this time period." });
     }
 
     let assignedDriver = null;
@@ -476,18 +444,30 @@ export const createWalkInBooking = async (req, res) => {
           endDate: { $gt: start },
         });
         if (driverConflict) {
-          return res.status(409).json({ message: "The selected driver is not available for this time." });
+          return res.status(409).json({
+            message: "The selected driver is not available for this time.",
+          });
         }
         assignedDriver = driverId;
       } else if (driverPool.length > 0) {
-        assignedDriver = await findAvailableDriver(driverPool, start, end, [], pickupDistrict);
+        assignedDriver = await findAvailableDriver(
+          driverPool,
+          start,
+          end,
+          [],
+          pickupDistrict,
+        );
         if (!assignedDriver) {
-          return res.status(400).json({ message: "No drivers available for this time. Choose a different time or select a driver manually." });
+          return res.status(400).json({
+            message:
+              "No drivers available for this time. Choose a different time or select a driver manually.",
+          });
         }
       }
 
       if (assignedDriver) {
-        const driverDoc = await User.findById(assignedDriver).select("driverRatePerHour");
+        const driverDoc =
+          await User.findById(assignedDriver).select("driverRatePerHour");
         driverRatePerHour = driverDoc?.driverRatePerHour || 0;
       }
     }
@@ -503,10 +483,10 @@ export const createWalkInBooking = async (req, res) => {
       return res.status(400).json({ message: "Invalid booking duration." });
     }
 
-    // 1. Get or Create Guest Customer
+    //Get or Create Guest Customer
     const guestEmail = email || `walkin_${Date.now()}@voyagego.local`;
     let guestUser = await User.findOne({ email: guestEmail });
-    
+
     if (!guestUser) {
       const tempPassword = await bcrypt.hash(`walkin_${Date.now()}`, 10);
       guestUser = await User.create({
@@ -515,13 +495,13 @@ export const createWalkInBooking = async (req, res) => {
         email: guestEmail,
         password: tempPassword,
         role: "CUSTOMER",
-        isWalkIn: true
+        isWalkIn: true,
       });
     }
 
     let initialStatus = BOOKING_STATUS.PENDING_PAYMENT;
     if (requiresDriver) {
-       initialStatus = BOOKING_STATUS.PENDING_DRIVER;
+      initialStatus = BOOKING_STATUS.PENDING_DRIVER;
     }
 
     const booking = await Booking.create({
@@ -543,7 +523,7 @@ export const createWalkInBooking = async (req, res) => {
       status: initialStatus,
       paymentMethod: null,
       paymentStatus: PAYMENT_STATUS.UNPAID,
-      paidAt: null
+      paidAt: null,
     });
 
     const populated = await Booking.findById(booking._id)
@@ -558,11 +538,8 @@ export const createWalkInBooking = async (req, res) => {
   }
 };
 
+// Driver response = Accept or Reject
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DRIVER: Accept or Reject
-// PATCH /api/bookings/:id/driver-response
-// ─────────────────────────────────────────────────────────────────────────────
 export const driverResponse = async (req, res) => {
   try {
     const { id } = req.params;
@@ -611,7 +588,7 @@ export const driverResponse = async (req, res) => {
 
       await tryAutoActivate(booking);
     } else {
-      // Reject — try reassign
+      // Reject, try reassign
       booking.rejectedDrivers.push(booking.driver);
 
       const driverPool = (booking.vehicle.drivers || []).map((d) => d._id || d);
@@ -652,23 +629,19 @@ export const driverResponse = async (req, res) => {
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
       .populate("driver", "name email phone driverRatePerHour");
 
-    res
-      .status(200)
-      .json({
-        message:
-          action === "accept" ? "Booking accepted." : "Processed rejection.",
-        booking: updated,
-      });
+    res.status(200).json({
+      message:
+        action === "accept" ? "Booking accepted." : "Processed rejection.",
+      booking: updated,
+    });
   } catch (error) {
     console.error("driverResponse:", error);
     res.status(500).json({ message: "Server error." });
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Submit payment → Paid → auto-activates
-// POST /api/bookings/:id/payment
-// ─────────────────────────────────────────────────────────────────────────────
+// Customer , Submit payment = Paid = auto activates
+
 export const processPayment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -686,9 +659,9 @@ export const processPayment = async (req, res) => {
       return res.status(403).json({ message: "Not authorised." });
     }
 
-    // Accept payment for both:
-    // - PendingPayment: self-drive bookings waiting for payment
-    // - Confirmed: with-driver bookings where driver already accepted
+    //Accept payment for both:
+    //PendingPayment: self-drive bookings waiting for payment
+    //Confirmed: with driver bookings where driver already accepted
     const payableStatuses = [
       BOOKING_STATUS.PENDING_PAYMENT,
       BOOKING_STATUS.CONFIRMED,
@@ -727,7 +700,7 @@ export const processPayment = async (req, res) => {
       !booking.requiresDriver ||
       booking.status === BOOKING_STATUS.PENDING_PAYMENT
     ) {
-      // ── Self-drive: payment → Active immediately (no driver step needed) ──────
+      //Self-drive: payment = Active immediately (no driver step needed)
       booking.status = BOOKING_STATUS.ACTIVE;
       await booking.save();
       await notify({
@@ -738,7 +711,7 @@ export const processPayment = async (req, res) => {
         booking: booking._id,
       });
     } else {
-      // ── With-driver (Confirmed + Paid) → tryAutoActivate ─────────────────────
+      //With driver (Confirmed + Paid) = AutoActivate
       await booking.save();
       await tryAutoActivate(booking);
     }
@@ -748,22 +721,17 @@ export const processPayment = async (req, res) => {
       .populate("vehicle", "name type model plateNumber pricePerHour imageUrl")
       .populate("driver", "name email phone driverRatePerHour");
 
-    res
-      .status(200)
-      .json({
-        message: "Payment successful. Your booking is now active.",
-        booking: updated,
-      });
+    res.status(200).json({
+      message: "Payment successful. Your booking is now active.",
+      booking: updated,
+    });
   } catch (error) {
     console.error("processPayment:", error);
     res.status(500).json({ message: "Server error." });
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Return vehicle → Completed
-// POST /api/bookings/:id/return
-// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER: Return vehicle = Completed
 export const returnVehicle = async (req, res) => {
   try {
     const { id } = req.params;
@@ -786,7 +754,7 @@ export const returnVehicle = async (req, res) => {
     const now = new Date();
     const vehicleRate = booking.vehicle?.pricePerHour || 0;
     const driverRate = booking.driver?.driverRatePerHour || 0;
-    // Use stored daily rates so fine uses the same discount as the original booking
+
     const fineBreakdown = calculateFine(
       vehicleRate,
       driverRate,
@@ -803,11 +771,11 @@ export const returnVehicle = async (req, res) => {
     booking.vehicleFine = fineBreakdown.vehicleFine;
     booking.driverFine = fineBreakdown.driverFine;
     booking.fine = fineBreakdown.total;
-    // NOTE: totalPrice is NOT increased here — fine is collected separately via gateway
+    // NOTE: totalPrice is NOT increased here, fine is collected separately via gateway
     booking.returnedAt = now;
     booking.postTrip.submittedAt = now;
     booking.status = BOOKING_STATUS.COMPLETED;
-    // If fine exists, mark it as unpaid — customer must pay via gateway
+    // If fine exists, mark it as unpaid, customer must pay via gateway
     if (fineBreakdown.total > 0) {
       booking.finePaid = false;
       booking.finePaidAt = null;
@@ -859,10 +827,7 @@ export const returnVehicle = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Optional pre-trip photos
-// POST /api/bookings/:id/pre-trip
-// ─────────────────────────────────────────────────────────────────────────────
+//Optional pre-trip photos
 export const submitPreTrip = async (req, res) => {
   try {
     const { id } = req.params;
@@ -904,10 +869,8 @@ export const submitPreTrip = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CUSTOMER: Cancel own booking
-// PATCH /api/bookings/:id/cancel
-// ─────────────────────────────────────────────────────────────────────────────
+// Cancel own booking
+
 export const cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
@@ -924,11 +887,9 @@ export const cancelBooking = async (req, res) => {
         BOOKING_STATUS.CONFIRMED,
       ].includes(booking.status)
     ) {
-      return res
-        .status(400)
-        .json({
-          message: "You can only cancel bookings that have not started.",
-        });
+      return res.status(400).json({
+        message: "You can only cancel bookings that have not started.",
+      });
     }
     booking.status = BOOKING_STATUS.CANCELLED;
     await booking.save();
@@ -939,10 +900,7 @@ export const cancelBooking = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Cash payment for walk-in
-// PATCH /api/bookings/:id/cash-payment
-// ─────────────────────────────────────────────────────────────────────────────
+// Cash payment for walk-in
 export const adminCashPayment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -981,10 +939,7 @@ export const adminCashPayment = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Cancel any booking
-// PATCH /api/bookings/:id/admin-cancel
-// ─────────────────────────────────────────────────────────────────────────────
+//Cancel any booking.
 export const adminCancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1015,9 +970,7 @@ export const adminCancelBooking = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // READ endpoints
-// ─────────────────────────────────────────────────────────────────────────────
 export const getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()

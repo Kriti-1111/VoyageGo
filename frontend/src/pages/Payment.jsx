@@ -374,7 +374,7 @@ export default function Payment() {
             <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
           </div>
 
-          {/* ── eSewa — production gateway ── */}
+          {/* eSewa gateway */}
           <button
             onClick={() => requestPay("esewa")}
             disabled={busy}
@@ -453,14 +453,14 @@ export default function Payment() {
                 textAlign: "center",
               }}
             >
-              eSewa requires merchant API keys — available after
-              production setup
+              eSewa requires merchant API keys — available after production
+              setup
             </p>
           )}
         </div>
       </div>
 
-      {/* ── T&C Dialog ── */}
+      {/* T&C Dialog */}
       {showTnC && (
         <div
           style={{
@@ -533,7 +533,7 @@ export default function Payment() {
                 }}
               >
                 <p style={{ margin: 0, fontWeight: 700, color: "#EA580C" }}>
-                  ⚠️ Late return charges apply
+                  Late return charges apply
                 </p>
                 <p
                   style={{ margin: "4px 0 0", color: "#9a3412", fontSize: 13 }}

@@ -200,7 +200,7 @@ export default function CarDetails() {
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
         }}
       >
-        {/* ── Breadcrumb ────────────────────────────────────────────────────── */}
+        {/*  Breadcrumb  */}
         <div
           style={{
             background: "#fff",
@@ -253,7 +253,7 @@ export default function CarDetails() {
           </div>
         </div>
 
-        {/* ── Main layout ───────────────────────────────────────────────────── */}
+        {/* Main layout  */}
         <div
           style={{
             maxWidth: 1100,
@@ -270,7 +270,7 @@ export default function CarDetails() {
               animation: "fadeIn 0.4s ease both",
             }}
           >
-            {/* ── LEFT: Image panel ─────────────────────────────────────────── */}
+            {/*  LEFT: Image panel  */}
             <div style={{ flex: "0 0 480px", position: "sticky", top: 24 }}>
               {/* Main image */}
               <div
@@ -365,7 +365,7 @@ export default function CarDetails() {
               </div>
             </div>
 
-            {/* ── RIGHT: Details panel ──────────────────────────────────────── */}
+            {/*  RIGHT: Details panel  */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {/* Brand + badges */}
               <div
@@ -725,7 +725,7 @@ export default function CarDetails() {
             </div>
           </div>
 
-          {/* ── Pricing table ─────────────────────────────────────────────── */}
+          {/* Pricing table  */}
           <div
             style={{
               marginTop: 40,

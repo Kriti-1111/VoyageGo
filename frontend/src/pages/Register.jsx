@@ -77,40 +77,14 @@ export default function Register() {
       <div
         style={{
           flex: "0 0 380px",
-          background:
-            "linear-gradient(155deg,#0f172a 0%,#F97316 50%,#EA580C 100%)",
+          background: "#F97316",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "48px 40px",
-          position: "relative",
-          overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: "-60px",
-            right: "-60px",
-            width: "240px",
-            height: "240px",
-            borderRadius: "50%",
-            background: "rgba(249,115,22,0.2)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-40px",
-            left: "-40px",
-            width: "200px",
-            height: "200px",
-            borderRadius: "50%",
-            background: "rgba(56,189,248,0.12)",
-          }}
-        />
-
-        <div style={{ position: "relative" }}>
+        <div>
           <Link
             to="/"
             style={{
@@ -124,7 +98,7 @@ export default function Register() {
               style={{
                 width: "40px",
                 height: "40px",
-                background: "linear-gradient(135deg,#F97316,#EA580C)",
+                background: "#fff",
                 borderRadius: "12px",
                 display: "flex",
                 alignItems: "center",
@@ -136,7 +110,7 @@ export default function Register() {
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#fff"
+                stroke="#F97316"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -155,7 +129,7 @@ export default function Register() {
           </Link>
         </div>
 
-        <div style={{ position: "relative" }}>
+        <div>
           <h2
             style={{
               fontSize: "28px",
@@ -171,7 +145,8 @@ export default function Register() {
           <p
             style={{
               fontSize: "14px",
-              color: "#94a3b8",
+              color: "#fff",
+              opacity: 0.9,
               margin: "0 0 28px",
               lineHeight: 1.6,
             }}
@@ -191,7 +166,7 @@ export default function Register() {
                 key={f}
                 style={{
                   fontSize: "13px",
-                  color: "#a5b4fc",
+                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
                   gap: "8px",

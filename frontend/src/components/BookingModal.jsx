@@ -29,7 +29,6 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
       .catch((e) => console.error("Failed to fetch user", e));
   }, []);
 
-  // Lock background scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -56,7 +55,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
       .finally(() => setLoadingDrivers(false));
   }, [showDriverList]);
 
-  // ── Pricing ──────────────────────────────────────────────────────────────────
+  //Pricing
   const totalPrice = (() => {
     if (!startDate || !endDate) return null;
     const diffMs = new Date(endDate) - new Date(startDate);
@@ -81,7 +80,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
     ),
   );
 
-  // ── Submit ────────────────────────────────────────────────────────────────────
+  // Submit
   async function handleConfirm() {
     if (!startDate || !endDate) {
       toast.error("Please select start and end date/time.");
@@ -166,7 +165,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
           overflowY: "auto",
         }}
       >
-        {/* ── Header ── */}
+        {/* Header */}
         <div
           style={{
             display: "flex",
@@ -218,12 +217,12 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (
-              TYPE_EMOJI[vehicle.type] || "🚗"
+              TYPE_EMOJI[vehicle.type] || ""
             )}
           </div>
         </div>
 
-        {/* ── Date pickers ── */}
+        {/* Date pickers */}
         <div
           style={{
             display: "grid",
@@ -279,7 +278,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
           ))}
         </div>
 
-        {/* ── Driver section ── */}
+        {/* Driver section */}
         <div style={{ marginBottom: 14 }}>
           <label
             style={{
@@ -402,12 +401,12 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
                 e.currentTarget.style.borderColor = "#c7d2fe";
               }}
             >
-              🧑‍✈️ Add a Driver to this booking
+              Add a Driver to this booking
             </button>
           )}
         </div>
 
-        {/* ── Driver list overlay ── */}
+        {/* Driver list overlay */}
         {showDriverList && (
           <div
             style={{
@@ -632,7 +631,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
           </div>
         )}
 
-        {/* ── Notes ── */}
+        {/* Notes */}
         <div style={{ marginBottom: 14 }}>
           <label
             style={{
@@ -666,7 +665,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
           />
         </div>
 
-        {/* ── Price summary ── */}
+        {/* Price summary */}
         {totalPrice !== null && (
           <div
             style={{
@@ -701,7 +700,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
                   marginBottom: 4,
                 }}
               >
-                <span>🧑‍✈️ Driver: {selectedDriver.name}</span>
+                <span>Driver: {selectedDriver.name}</span>
                 <span style={{ color: "#10b981", fontWeight: 600 }}>
                   Included
                 </span>
@@ -725,7 +724,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
           </div>
         )}
 
-        {/* ── Booking type indicator ── */}
+        {/* Booking type indicator */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <span
             style={{
@@ -738,11 +737,11 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
               border: `1px solid ${selectedDriver ? "#c7d2fe" : "#e2e8f0"}`,
             }}
           >
-            {selectedDriver ? `🧑‍✈️ With driver` : "🚗 Vehicle only"}
+            {selectedDriver ? ` With driver` : " Vehicle only"}
           </span>
         </div>
 
-        {/* ── Identity Verification Warning ── */}
+        {/* Identity Verification Warning */}
         {currentUser &&
           (currentUser.documents?.status === "NotSubmitted" ||
             currentUser.documents?.status === "Rejected") && (
@@ -757,7 +756,7 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
                 gap: 10,
               }}
             >
-              <span style={{ fontSize: 18 }}>⚠️</span>
+              <span style={{ fontSize: 18 }}></span>
               <div>
                 <p
                   style={{
@@ -769,14 +768,16 @@ export default function BookingModal({ vehicle, onClose, onSuccess }) {
                 >
                   Your identity is not yet verified.
                 </p>
-                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#d97706" }}>
+                <p
+                  style={{ margin: "2px 0 0", fontSize: 12, color: "#d97706" }}
+                >
                   Your booking will be held until verification is complete.
                 </p>
               </div>
             </div>
           )}
 
-        {/* ── Actions ── */}
+        {/* Actions */}
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={onClose}

@@ -1,6 +1,6 @@
 import Notification from "../models/Notification.js";
 
-// GET /api/notifications — logged-in user's notifications (newest first, max 30)
+//logged in user's notifications
 export const getNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({ recipient: req.user._id })
@@ -14,7 +14,7 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-// PATCH /api/notifications/:id/read — mark a single notification as read
+//mark a single notification as read
 export const markRead = async (req, res) => {
   try {
     await Notification.findOneAndUpdate(
@@ -28,7 +28,7 @@ export const markRead = async (req, res) => {
   }
 };
 
-// PATCH /api/notifications/read-all — mark all as read
+//mark all as read
 export const markAllRead = async (req, res) => {
   try {
     await Notification.updateMany(

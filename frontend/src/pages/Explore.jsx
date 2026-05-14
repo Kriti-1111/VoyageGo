@@ -24,7 +24,7 @@ function useVehicles() {
   return { vehicles, loading, error };
 }
 
-// ── Vehicle grid card ─────────────────────────────────────────────────────────
+//  Vehicle grid card
 function VehicleCard({ vehicle, user, navigate }) {
   const imgSrc = vehicle.imageUrl?.startsWith("data:")
     ? vehicle.imageUrl
@@ -346,7 +346,7 @@ function SkeletonCard() {
   );
 }
 
-// ── Sidebar Filters ───────────────────────────────────────────────────────────
+// Sidebar Filters
 function Sidebar({
   filterType,
   setFilterType,
@@ -422,12 +422,12 @@ function Sidebar({
       <div style={{ marginBottom: 20 }}>
         {[
           {
-            label: "✓ Available only",
+            label: "Available only",
             active: filterAvail,
             toggle: () => setFilterAvail((v) => !v),
           },
           {
-            label: "🧑‍✈️ Has driver",
+            label: "Has driver",
             active: filterDriver,
             toggle: () => setFilterDriver((v) => !v),
           },
@@ -669,7 +669,7 @@ export default function Explore() {
           fontFamily: "'DM Sans','Segoe UI',system-ui,sans-serif",
         }}
       >
-        {/* ── Top search bar ─────────────────────────────────────────────────── */}
+        {/* Top search bar */}
         <div
           style={{
             background: "#fff",
@@ -763,7 +763,7 @@ export default function Explore() {
           </div>
         </div>
 
-        {/* ── Body: sidebar + grid ───────────────────────────────────────────── */}
+        {/*  Body: sidebar + grid  */}
         <div
           style={{
             maxWidth: 1100,

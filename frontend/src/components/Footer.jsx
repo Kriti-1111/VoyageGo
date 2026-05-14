@@ -4,7 +4,7 @@ export default function Footer() {
   return (
     <footer
       style={{
-        background: "#df6915",
+        background: "#d16314f1",
         fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
       }}
     >
@@ -40,9 +40,7 @@ export default function Footer() {
                 justifyContent: "center",
                 fontSize: "16px",
               }}
-            >
-              🚗
-            </div>
+            ></div>
             <span
               style={{
                 fontSize: "18px",
@@ -160,9 +158,9 @@ export default function Footer() {
             style={{ display: "flex", flexDirection: "column", gap: "10px" }}
           >
             {[
-              { label: "📍", value: "Kathmandu, Nepal" },
-              { label: "✉️", value: "support@voyagego.com" },
-              { label: "📞", value: "+977 01-000-0000" },
+              { label: "", value: "Kathmandu, Nepal" },
+              { label: "", value: "support@voyagego.com" },
+              { label: "", value: "+977 01-000-0000" },
             ].map((item) => (
               <div
                 key={item.value}

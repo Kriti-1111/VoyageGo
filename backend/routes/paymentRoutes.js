@@ -13,21 +13,20 @@ import {
 
 const router = express.Router();
 
-// ── eSewa — booking ───────────────────────────────────────────────────────────
+//eSewa booking
 router.post("/esewa/initiate", auth, esewaInitiate);
 router.post("/esewa/admin-initiate", auth, esewaAdminInitiate);
 router.get("/esewa/success", esewaSuccess); // eSewa browser redirect (no auth)
 
-// ── eSewa — fine ──────────────────────────────────────────────────────────────
+//eSewa fine
 router.post("/esewa/fine/initiate", auth, esewaFineInitiate);
 router.get("/esewa/fine/success", esewaFineSuccess); // eSewa browser redirect (no auth)
 
-
-// ── Demo pay (FYP fallback) ───────────────────────────────────────────────────
+//Demo pay
 router.post("/demo", auth, demoPay);
 router.post("/demo/fine", auth, demoFinePay);
 
-// ── Walk-in Cash Pay ────────────────────────────────────────────────────────
+//Walk In Cash Pay
 router.post("/walkin/cash", auth, walkinCashPay);
 
 export default router;

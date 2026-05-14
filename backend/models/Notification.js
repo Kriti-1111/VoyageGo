@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
 export const NOTIF_TYPES = {
-  DRIVER_ACCEPTED: "DRIVER_ACCEPTED", // driver accepted → pay now
-  DRIVER_REJECTED: "DRIVER_REJECTED", // driver rejected → reassigning or cancelled
-  NO_DRIVER: "NO_DRIVER", // no drivers available → cancelled
-  PAYMENT_SUCCESS: "PAYMENT_SUCCESS", // payment confirmed → booking active
+  DRIVER_ACCEPTED: "DRIVER_ACCEPTED", // driver accepted = pay now
+  DRIVER_REJECTED: "DRIVER_REJECTED", // driver rejected = reassigning
+  NO_DRIVER: "NO_DRIVER", // no drivers available = cancelled
+  PAYMENT_SUCCESS: "PAYMENT_SUCCESS", // payment confirmed = booking active
   BOOKING_ACTIVE: "BOOKING_ACTIVE", // booking is now active
   BOOKING_COMPLETED: "BOOKING_COMPLETED", // trip completed
   BOOKING_CANCELLED: "BOOKING_CANCELLED", // booking cancelled

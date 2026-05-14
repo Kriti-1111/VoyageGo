@@ -1,9 +1,6 @@
 import Booking from "../models/Booking.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN/STAFF: Get all condition reports
-// GET /api/condition-reports
-// ─────────────────────────────────────────────────────────────────────────────
+//Get all condition reports
 export const getAllConditionReports = async (req, res) => {
   try {
     // Find bookings that have either a pre-trip or post-trip report submitted
@@ -24,10 +21,7 @@ export const getAllConditionReports = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADMIN/STAFF: Review condition report
-// PATCH /api/condition-reports/:id/review
-// ─────────────────────────────────────────────────────────────────────────────
+// Review condition report
 export const reviewConditionReport = async (req, res) => {
   try {
     const { id } = req.params;
@@ -40,10 +34,10 @@ export const reviewConditionReport = async (req, res) => {
 
     if (reviewed !== undefined) booking.conditionReportReviewed = reviewed;
     if (damageFlagged !== undefined) {
-       booking.damageFlagged = damageFlagged;
-       // If staff flags damage and customer hadn't, it's 'staff'. If customer already had, wait, just accept what frontend sends for damageFlaggedBy
+      booking.damageFlagged = damageFlagged;
     }
-    if (damageFlaggedBy !== undefined) booking.damageFlaggedBy = damageFlaggedBy;
+    if (damageFlaggedBy !== undefined)
+      booking.damageFlaggedBy = damageFlaggedBy;
     if (damageNote !== undefined) booking.damageNote = damageNote;
 
     await booking.save();

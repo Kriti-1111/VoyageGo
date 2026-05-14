@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
       default: "CUSTOMER",
     },
 
-    // Driver-specific
+    // Driver specific
     licenseNo: { type: String },
     languages: [{ type: String }],
     vehicleSpecialization: [{ type: String }],
@@ -26,17 +26,17 @@ const userSchema = new mongoose.Schema(
     totalRides: { type: Number, default: 0 },
     totalRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
-    district: { 
-      type: String, 
-      enum: ["Kathmandu", "Lalitpur", "Bhaktapur"], 
-      default: "Kathmandu" 
+    district: {
+      type: String,
+      enum: ["Kathmandu", "Lalitpur", "Bhaktapur"],
+      default: "Kathmandu",
     },
 
     // Address
     permanentAddress: String,
     temporaryAddress: String,
-    
-    // Walk-in Customer
+
+    // Walk in Customer
     isWalkIn: { type: Boolean, default: false },
 
     // Document Verification

@@ -5,10 +5,6 @@ import axios from "axios";
 const API = "http://localhost:5000";
 
 // Handles both booking and fine payments from eSewa.
-// Backend redirects here with:
-//   Booking: ?status=success&bookingId=XXX
-//   Fine:    ?status=success&bookingId=XXX&type=fine
-// On failure: ?status=failed&reason=...
 
 export default function EsewaReturn() {
   const [params] = useSearchParams();

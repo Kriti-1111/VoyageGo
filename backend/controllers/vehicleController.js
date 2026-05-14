@@ -1,9 +1,7 @@
 import Vehicle from "../models/Vehicle.js";
 
-// GET /api/vehicles — public
 export const getAllVehicles = async (req, res) => {
   try {
-    // Populate drivers so admin dashboard can show driver count + names on cards
     const vehicles = await Vehicle.find()
       .populate("drivers", "name isAvailable isDriverVerified")
       .sort({ createdAt: -1 });
@@ -14,10 +12,8 @@ export const getAllVehicles = async (req, res) => {
   }
 };
 
-// GET /api/vehicles/:id — public
 export const getVehicleById = async (req, res) => {
   try {
-    // Populate drivers only on single vehicle fetch (needed for booking page driver list)
     const vehicle = await Vehicle.findById(req.params.id).populate(
       "drivers",
       "name email phone isAvailable isDriverVerified languages vehicleSpecialization",
@@ -31,7 +27,6 @@ export const getVehicleById = async (req, res) => {
   }
 };
 
-// POST /api/vehicles — Admin/Owner
 export const createVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.create(req.body);
@@ -42,7 +37,6 @@ export const createVehicle = async (req, res) => {
   }
 };
 
-// PUT/PATCH /api/vehicles/:id — Admin/Owner
 export const updateVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findByIdAndUpdate(req.params.id, req.body, {
@@ -58,7 +52,6 @@ export const updateVehicle = async (req, res) => {
   }
 };
 
-// DELETE /api/vehicles/:id — Admin/Owner
 export const deleteVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
@@ -71,7 +64,6 @@ export const deleteVehicle = async (req, res) => {
   }
 };
 
-// PATCH /api/vehicles/:id/toggle — Admin: toggle isActive on/off
 export const toggleVehicleActive = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
@@ -86,8 +78,7 @@ export const toggleVehicleActive = async (req, res) => {
   }
 };
 
-// PATCH /api/vehicles/:id/drivers — Admin: assign/remove drivers from vehicle
-// Body: { driverIds: ["id1", "id2"] }  — replaces the entire drivers array
+//Admin: assign/remove drivers from vehicle
 export const updateVehicleDrivers = async (req, res) => {
   try {
     const { driverIds } = req.body;

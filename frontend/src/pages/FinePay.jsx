@@ -523,8 +523,8 @@ export default function FinePay() {
                 textAlign: "center",
               }}
             >
-              eSewa requires merchant API keys — available after
-              production setup
+              eSewa requires merchant API keys — available after production
+              setup
             </p>
           )}
         </div>

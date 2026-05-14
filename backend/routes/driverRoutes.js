@@ -14,7 +14,7 @@ import Booking, { BOOKING_STATUS } from "../models/Booking.js";
 
 const router = express.Router();
 
-// Public — guests can browse
+// Public, guests can browse
 router.get("/", getAllDrivers);
 
 // Driver's own profile and availability toggle
@@ -31,10 +31,7 @@ router.patch("/:id/verify", auth, admin, verifyDriver);
 // Admin: update details (rate, district)
 router.patch("/:id/admin-update", auth, admin, updateDriverAdmin);
 
-// ── Driver availability calendar ──────────────────────────────────────────────
-// GET /api/drivers/:id/availability
-// Returns booked time slots so the frontend can show a read-only calendar.
-// Public — no auth needed to view availability.
+//Driver availability calendar
 router.get("/:id/availability", async (req, res) => {
   try {
     const bookings = await Booking.find({

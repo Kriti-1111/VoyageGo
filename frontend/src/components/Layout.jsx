@@ -5,8 +5,6 @@ import Footer from "./Footer";
 export default function Layout({ children }) {
   const { pathname } = useLocation();
 
-  // Management dashboard: has its own internal sidebar but still gets the shared Navbar
-  // Only suppress the Footer on management pages (it would look odd inside the sidebar layout)
   const isManagement = pathname.startsWith("/management");
 
   return (
